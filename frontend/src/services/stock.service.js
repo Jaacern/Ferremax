@@ -8,7 +8,18 @@ const stockService = {
    */
   getStock: async (filters = {}) => {
     try {
-      const response = await api.get('/stock', { params: filters });
+
+      const cleaned = Object.fromEntries(
+       Object.entries(filters).filter(
+         ([, value]) =>
+           value !== undefined &&
+           value !== null &&
+           value !== '' &&
+           value !== false
+       )
+     );
+      
+      const response = await api.get('/stock', { params: cleaned });
       return response.data;
     } catch (error) {
       console.error('Error fetching stock:', error);

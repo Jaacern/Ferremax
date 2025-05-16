@@ -245,23 +245,27 @@ const AdminDashboard = () => {
           <Card className="border-0 shadow-sm">
             <Card.Body>
               <h5 className="mb-3">Accesos rápidos</h5>
-              <Nav className="gap-2 flex-wrap">
+              <div className="d-flex gap-2 flex-wrap">
                 <Button as={Link} to="/admin/products" variant="outline-primary">
-                  <i className="bi bi-box me-1"></i> Gestionar Productos
+                  <i className="bi bi-box me-1" /> Gestionar Productos
                 </Button>
+
                 <Button as={Link} to="/admin/users" variant="outline-primary">
-                  <i className="bi bi-people me-1"></i> Gestionar Usuarios
+                  <i className="bi bi-people me-1" /> Gestionar Usuarios
                 </Button>
+
                 <Button as={Link} to="/admin/orders" variant="outline-primary">
-                  <i className="bi bi-bag me-1"></i> Gestionar Pedidos
+                  <i className="bi bi-bag me-1" /> Gestionar Pedidos
                 </Button>
+
                 <Button as={Link} to="/admin/stock" variant="outline-primary">
-                  <i className="bi bi-clipboard-check me-1"></i> Gestionar Stock
+                  <i className="bi bi-clipboard-check me-1" /> Gestionar Stock
                 </Button>
+
                 <Button as={Link} to="/admin/branches" variant="outline-primary">
-                  <i className="bi bi-shop me-1"></i> Gestionar Sucursales
+                  <i className="bi bi-shop me-1" /> Gestionar Sucursales
                 </Button>
-              </Nav>
+              </div>
             </Card.Body>
           </Card>
         </Col>

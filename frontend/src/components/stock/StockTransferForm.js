@@ -8,7 +8,7 @@ import {
   selectCurrentStock, 
   selectBranches,
   selectIsLoading, 
-  selectError 
+  selectStockError
 } from '../../store/stock.slice';
 
 const StockTransferForm = ({ stockId, onSuccess, onCancel }) => {
@@ -16,7 +16,7 @@ const StockTransferForm = ({ stockId, onSuccess, onCancel }) => {
   const currentStock = useSelector(selectCurrentStock);
   const branches = useSelector(selectBranches);
   const isLoading = useSelector(selectIsLoading);
-  const error = useSelector(selectError);
+  const error = useSelector(selectStockError);
   
   const [formData, setFormData] = useState({
     quantity: '',

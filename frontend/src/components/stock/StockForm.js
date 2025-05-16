@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Form, Button, Spinner, Alert, Row, Col } from 'react-bootstrap';
 import { useDispatch, useSelector } from 'react-redux';
-import { updateStock, fetchStockById, selectCurrentStock, selectIsLoading, selectError } from '../../store/stock.slice';
+import { updateStock, fetchStockById, selectCurrentStock, selectIsLoading, selectStockError } from '../../store/stock.slice';
 
 const StockForm = ({ stockId, branchId, onSuccess, onCancel }) => {
   const dispatch = useDispatch();
   const currentStock = useSelector(selectCurrentStock);
   const isLoading = useSelector(selectIsLoading);
-  const error = useSelector(selectError);
+  const error = useSelector(selectStockError);
   
   const [formData, setFormData] = useState({
     quantity: '',

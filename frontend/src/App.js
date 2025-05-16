@@ -20,8 +20,16 @@ import ShoppingCart from './pages/Cart/ShoppingCart';
 import Checkout from './pages/Cart/Checkout';
 import PaymentSuccess from './pages/Cart/PaymentSuccess';
 
-// Página de inicio (aún no la hemos creado, pero la necesitamos)
+// Página de inicio
 import Home from './pages/Home';
+
+// Páginas del panel de administración
+import AdminDashboard from './pages/Admin/Dashboard';
+import ProductManagement from './pages/Admin/ProductManagement';
+import UserManagement from './pages/Admin/UserManagement';
+import OrderManagement from './pages/Admin/OrderManagement';
+import BranchManagement from './pages/Admin/BranchManagement';
+import AdminStockPage from './pages/Admin/AdminStockPage';   // <-- NUEVO IMPORT
 
 function App() {
   return (
@@ -32,32 +40,88 @@ function App() {
           <Routes>
             {/* Ruta principal */}
             <Route path="/" element={<Home />} />
-            
+
             {/* Rutas de autenticación */}
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/change-password" element={<ChangePassword />} />
-            
+
             {/* Rutas de productos */}
             <Route path="/products" element={<ProductCatalog />} />
             <Route path="/products/:id" element={<ProductPage />} />
-            
+
             {/* Rutas de carrito */}
             <Route path="/cart" element={<ShoppingCart />} />
-            <Route path="/checkout" element={
-              <ProtectedRoute allowedRoles={['customer']}>
-                <Checkout />
-              </ProtectedRoute>
-            } />
+            <Route
+              path="/checkout"
+              element={
+                <ProtectedRoute allowedRoles={['customer']}>
+                  <Checkout />
+                </ProtectedRoute>
+              }
+            />
             <Route path="/payment-success" element={<PaymentSuccess />} />
-            
+
+            {/* Rutas de administración protegidas */}
+            <Route
+              path="/admin"
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/products"
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <ProductManagement />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/users"
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <UserManagement />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/orders"
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <OrderManagement />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/branches"
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <BranchManagement />
+                </ProtectedRoute>
+              }
+            />
+            <Route                                   /* <-- NUEVA RUTA */
+              path="/admin/stock"
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminStockPage />
+                </ProtectedRoute>
+              }
+            />
+
             {/* Ruta para páginas no encontradas */}
-            <Route path="*" element={
-              <div className="container py-5 text-center">
-                <h1>404 - Página no encontrada</h1>
-                <p>La página que estás buscando no existe.</p>
-              </div>
-            } />
+            <Route
+              path="*"
+              element={
+                <div className="container py-5 text-center">
+                  <h1>404 - Página no encontrada</h1>
+                  <p>La página que estás buscando no existe.</p>
+                </div>
+              }
+            />
           </Routes>
         </main>
         <Footer />

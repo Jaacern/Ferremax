@@ -50,7 +50,9 @@ def register():
         db.session.commit()
         
         # Generar token de acceso
-        access_token = create_access_token(identity=new_user.id)
+        access_token = create_access_token(
+            identity=str(new_user.id)
+            )   
         
         return jsonify({
             "message": "Usuario registrado exitosamente",
@@ -95,7 +97,7 @@ def login():
     
     # Generar token de acceso
     access_token = create_access_token(
-        identity=user.id, 
+        identity=str(user.id), 
         additional_claims=additional_claims
     )
     
