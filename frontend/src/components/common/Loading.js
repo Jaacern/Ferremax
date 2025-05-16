@@ -1,29 +1,37 @@
 import React from 'react';
-import { Spinner, Container } from 'react-bootstrap';
 
-const Loading = ({ message = 'Cargando...', fullscreen = false, size = 'lg' }) => {
-  // Estilo para el contenedor basado en si es pantalla completa o no
-  const containerStyle = fullscreen ? { 
-    height: '80vh', 
-    display: 'flex', 
-    flexDirection: 'column',
+const Loading = ({ message = 'Cargando...', fullScreen = false }) => {
+  // Estilo para el contenedor de carga en pantalla completa
+  const fullScreenStyle = {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    display: 'flex',
     justifyContent: 'center',
-    alignItems: 'center' 
-  } : {};
-
+    alignItems: 'center',
+    zIndex: 9999
+  };
+  
+  // Estilo para el contenedor de carga en línea
+  const inlineStyle = {
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: '2rem'
+  };
+  
   return (
-    <Container style={containerStyle} className="text-center py-4">
-      <Spinner 
-        animation="border" 
-        role="status" 
-        variant="primary"
-        size={size}
-        style={{ width: size === 'lg' ? '3rem' : '1.5rem', height: size === 'lg' ? '3rem' : '1.5rem' }}
-      >
-        <span className="visually-hidden">{message}</span>
-      </Spinner>
-      <p className="mt-3">{message}</p>
-    </Container>
+    <div style={fullScreen ? fullScreenStyle : inlineStyle}>
+      <div className="text-center">
+        <div className="spinner-border text-primary" role="status" style={{ width: '3rem', height: '3rem' }}>
+          <span className="visually-hidden">Cargando...</span>
+        </div>
+        {message && <p className="mt-3 text-primary">{message}</p>}
+      </div>
+    </div>
   );
 };
 

@@ -1,50 +1,63 @@
-import React, { useEffect } from 'react';
-import { Container, Row, Col, Card } from 'react-bootstrap';
-import { Link, useNavigate } from 'react-router-dom';
-import { useSelector } from 'react-redux';
-import { selectIsAuthenticated } from '../../store/auth.slice';
-
+import React, { useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { useNavigate, Link } from 'react-router-dom';
+import { register } from '../../store/auth.slice';
+import { Alert } from '@mui/material';
 import RegisterForm from '../../components/auth/RegisterForm';
 
 const Register = () => {
+  const [error, setError] = useState(null);
+  const { loading } = useSelector(state => state.auth);
+  const dispatch = useDispatch();
   const navigate = useNavigate();
-  const isAuthenticated = useSelector(selectIsAuthenticated);
 
-  // Redireccionar si ya está autenticado
-  useEffect(() => {
-    if (isAuthenticated) {
-      navigate('/');
+  const handleRegister = async (userData) => {
+    try {
+      setError(null);
+      const resultAction = await dispatch(register(userData));
+      
+      if (register.fulfilled.match(resultAction)) {
+        // Redirigir al catálogo después del registro exitoso
+        navigate('/catalog');
+      } else {
+        setError(resultAction.error.message || 'Error al registrarse');
+      }
+    } catch (err) {
+      setError('Error de conexión. Intente nuevamente.');
+      console.error(err);
     }
-  }, [isAuthenticated, navigate]);
+  };
 
   return (
-    <Container className="py-5">
-      <Row className="justify-content-center">
-        <Col xs={12} md={10} lg={8}>
-          <Card className="shadow-sm">
-            <Card.Body className="p-4">
-              <div className="text-center mb-4">
-                <h2 className="fw-bold">Crear una cuenta</h2>
-                <p className="text-muted">
-                  Regístrate para disfrutar de ofertas exclusivas y una mejor experiencia de compra
-                </p>
-              </div>
-              
-              <RegisterForm />
-              
-              <div className="mt-4 text-center">
-                <p className="mb-0">
-                  ¿Ya tienes una cuenta?{' '}
-                  <Link to="/login" className="text-decoration-none">
-                    Inicia sesión aquí
-                  </Link>
-                </p>
-              </div>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
-    </Container>
+    <div className="flex min-h-screen items-center justify-center bg-gray-100 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8 bg-white p-8 rounded-lg shadow-md">
+        <div>
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+            Crea tu cuenta
+          </h2>
+          <p className="mt-2 text-center text-sm text-gray-600">
+            Regístrate para acceder a nuestro catálogo de productos
+          </p>
+        </div>
+        
+        {error && (
+          <Alert severity="error" className="mb-4">
+            {error}
+          </Alert>
+        )}
+        
+        <RegisterForm onSubmit={handleRegister} loading={loading} />
+        
+        <div className="mt-6 text-center">
+          <p className="text-sm">
+            ¿Ya tienes una cuenta?{' '}
+            <Link to="/auth/login" className="text-blue-600 hover:text-blue-800">
+              Inicia sesión
+            </Link>
+          </p>
+        </div>
+      </div>
+    </div>
   );
 };
 

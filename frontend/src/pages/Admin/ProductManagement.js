@@ -1,112 +1,151 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useSelector } from 'react-redux';
+import api from '../../services/api';
 import { 
-  Container, 
-  Table, 
-  Button, 
-  Modal, 
-  Form, 
-  Row, 
-  Col, 
-  Badge, 
-  Alert, 
-  Spinner, 
-  Pagination,
-  Card,
-  InputGroup
-} from 'react-bootstrap';
-import { useDispatch, useSelector } from 'react-redux';
-import { 
-  fetchProducts,
-  fetchCategories,
-  selectProducts,
-  selectCategories,
-  selectPagination,
-  selectIsLoading,
-  selectError,
-  setFilters
-} from '../../store/product.slice';
-import productService from '../../services/product.service';
+  Box, Typography, Paper, TextField, Button, 
+  Table, TableBody, TableCell, TableContainer, 
+  TableHead, TableRow, TablePagination, 
+  Dialog, DialogActions, DialogContent, 
+  DialogTitle, FormControl, InputLabel,
+  Select, MenuItem, Alert, IconButton,
+  Grid
+} from '@mui/material';
+import { Add, Edit, Delete, Search } from '@mui/icons-material';
 
 const ProductManagement = () => {
-  const dispatch = useDispatch();
-  const products = useSelector(selectProducts);
-  const categories = useSelector(selectCategories);
-  const pagination = useSelector(selectPagination);
-  const isLoading = useSelector(selectIsLoading);
-  const error = useSelector(selectError);
+  const { user } = useSelector(state => state.auth);
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   
-  // Estado para modales
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  // Estado para paginación y filtros
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
   
-  // Estado para el producto actual en edición/eliminación
+  // Estado para modal de producto
+  const [openModal, setOpenModal] = useState(false);
   const [currentProduct, setCurrentProduct] = useState(null);
-  
-  // Estado para el formulario
   const [formData, setFormData] = useState({
     sku: '',
     name: '',
     description: '',
-    brand: '',
-    brand_code: '',
+    price: '',
     category: '',
     subcategory: '',
-    price: '',
-    discount_percentage: 0,
+    brand: '',
+    brand_code: '',
+    discount_percentage: '0',
     is_featured: false,
     is_new: false,
     image_url: ''
   });
   
-  // Estado para búsqueda
-  const [searchTerm, setSearchTerm] = useState('');
-  
-  // Estado para errores de formulario
-  const [formError, setFormError] = useState(null);
-  
-  // Estado para operaciones
-  const [operationLoading, setOperationLoading] = useState(false);
-  const [operationSuccess, setOperationSuccess] = useState(null);
-  
-  // Formatear precio
-  const formatPrice = (price) => {
-    return new Intl.NumberFormat('es-CL', {
-      style: 'currency',
-      currency: 'CLP'
-    }).format(price);
-  };
-  
-  // Cargar productos
+  // Categorías disponibles (desde el enum del backend)
+  const productCategories = [
+    { value: 'MANUAL_TOOLS', label: 'Herramientas Manuales' },
+    { value: 'POWER_TOOLS', label: 'Herramientas Eléctricas' },
+    { value: 'CONSTRUCTION_MATERIALS', label: 'Materiales de Construcción' },
+    { value: 'FINISHES', label: 'Acabados' },
+    { value: 'SAFETY_EQUIPMENT', label: 'Equipos de Seguridad' },
+    { value: 'FASTENERS', label: 'Tornillos y Anclajes' },
+    { value: 'ADHESIVES', label: 'Fijaciones y Adhesivos' },
+    { value: 'MEASURING_TOOLS', label: 'Equipos de Medición' }
+  ];
+
   useEffect(() => {
-    dispatch(fetchProducts({ page: 1, filters: { per_page: 10 } }));
-    dispatch(fetchCategories());
-  }, [dispatch]);
-  
-  // Manejar cambio de página
-  const handlePageChange = (page) => {
-    dispatch(setFilters({ page }));
+    fetchProducts();
+  }, [page, rowsPerPage, categoryFilter]);
+
+  const fetchProducts = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Construir parámetros de consulta
+      const params = new URLSearchParams({
+        page: page + 1,  // API usa base 1 para páginas
+        per_page: rowsPerPage
+      });
+      
+      if (categoryFilter) {
+        params.append('category', categoryFilter);
+      }
+      
+      if (searchTerm) {
+        params.append('search', searchTerm);
+      }
+      
+      const response = await api.get(`/products?${params.toString()}`);
+      setProducts(response.data.products);
+      
+    } catch (err) {
+      console.error('Error al cargar productos:', err);
+      setError('No se pudieron cargar los productos. Intente nuevamente.');
+    } finally {
+      setLoading(false);
+    }
   };
-  
-  // Manejar búsqueda
-  const handleSearch = (e) => {
+
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
+  const handleSearchSubmit = (e) => {
     e.preventDefault();
-    dispatch(setFilters({ 
-      search: searchTerm,
-      page: 1 
-    }));
+    fetchProducts();
   };
-  
-  // Resetear búsqueda
-  const handleResetSearch = () => {
-    setSearchTerm('');
-    dispatch(setFilters({ 
-      search: '',
-      page: 1 
-    }));
+
+  const handleOpenModal = (product = null) => {
+    if (product) {
+      // Editar producto existente
+      setCurrentProduct(product);
+      setFormData({
+        sku: product.sku,
+        name: product.name,
+        description: product.description || '',
+        price: product.price.toString(),
+        category: product.category,
+        subcategory: product.subcategory || '',
+        brand: product.brand || '',
+        brand_code: product.brand_code || '',
+        discount_percentage: product.discount_percentage?.toString() || '0',
+        is_featured: product.is_featured || false,
+        is_new: product.is_new || false,
+        image_url: product.image_url || ''
+      });
+    } else {
+      // Nuevo producto
+      setCurrentProduct(null);
+      setFormData({
+        sku: '',
+        name: '',
+        description: '',
+        price: '',
+        category: '',
+        subcategory: '',
+        brand: '',
+        brand_code: '',
+        discount_percentage: '0',
+        is_featured: false,
+        is_new: false,
+        image_url: ''
+      });
+    }
+    setOpenModal(true);
   };
-  
-  // Manejar cambios en el formulario
+
+  const handleCloseModal = () => {
+    setOpenModal(false);
+    setCurrentProduct(null);
+  };
+
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData({
@@ -114,894 +153,378 @@ const ProductManagement = () => {
       [name]: type === 'checkbox' ? checked : value
     });
   };
-  
-  // Abrir modal de agregar
-  const handleShowAddModal = () => {
-    setFormData({
-      sku: '',
-      name: '',
-      description: '',
-      brand: '',
-      brand_code: '',
-      category: '',
-      subcategory: '',
-      price: '',
-      discount_percentage: 0,
-      is_featured: false,
-      is_new: true,
-      image_url: ''
-    });
-    setFormError(null);
-    setOperationSuccess(null);
-    setShowAddModal(true);
-  };
-  
-  // Abrir modal de edición
-  const handleShowEditModal = (product) => {
-    setCurrentProduct(product);
-    setFormData({
-      sku: product.sku,
-      name: product.name,
-      description: product.description || '',
-      brand: product.brand || '',
-      brand_code: product.brand_code || '',
-      category: product.category || '',
-      subcategory: product.subcategory || '',
-      price: product.price,
-      discount_percentage: product.discount_percentage || 0,
-      is_featured: product.is_featured || false,
-      is_new: product.is_new || false,
-      image_url: product.image_url || ''
-    });
-    setFormError(null);
-    setOperationSuccess(null);
-    setShowEditModal(true);
-  };
-  
-  // Abrir modal de eliminación
-  const handleShowDeleteModal = (product) => {
-    setCurrentProduct(product);
-    setFormError(null);
-    setOperationSuccess(null);
-    setShowDeleteModal(true);
-  };
-  
-  // Cerrar modales
-  const handleCloseModals = () => {
-    setShowAddModal(false);
-    setShowEditModal(false);
-    setShowDeleteModal(false);
-    setCurrentProduct(null);
-  };
-  
-  // Validar formulario
-  const validateForm = () => {
-    if (!formData.sku || !formData.name || !formData.price || !formData.category) {
-      setFormError('Los campos SKU, nombre, precio y categoría son obligatorios');
-      return false;
-    }
-    
-    if (isNaN(formData.price) || parseFloat(formData.price) <= 0) {
-      setFormError('El precio debe ser un número positivo');
-      return false;
-    }
-    
-    if (isNaN(formData.discount_percentage) || 
-        parseFloat(formData.discount_percentage) < 0 || 
-        parseFloat(formData.discount_percentage) > 100) {
-      setFormError('El descuento debe ser un número entre 0 y 100');
-      return false;
-    }
-    
-    return true;
-  };
-  
-  // Crear producto
-  const handleAddProduct = async () => {
-    if (!validateForm()) return;
-    
-    setOperationLoading(true);
-    setFormError(null);
+
+  const handleSubmitProduct = async (e) => {
+    e.preventDefault();
     
     try {
-      // Preparar datos
-      const productData = {
-        ...formData,
-        price: parseFloat(formData.price),
-        discount_percentage: parseFloat(formData.discount_percentage)
-      };
+      setLoading(true);
+      setError(null);
       
-      // Llamar al servicio
-      await productService.createProduct(productData);
+      // Crear o actualizar producto
+      if (currentProduct) {
+        // Actualizar producto existente
+        await api.put(`/products/${currentProduct.id}`, formData);
+      } else {
+        // Crear nuevo producto
+        await api.post('/products', formData);
+      }
       
-      // Actualizar lista
-      dispatch(fetchProducts({ page: 1, filters: { per_page: 10 } }));
-      
-      // Mostrar mensaje de éxito
-      setOperationSuccess('Producto creado exitosamente');
-      
-      // Cerrar modal después de un momento
-      setTimeout(() => {
-        handleCloseModals();
-        setOperationSuccess(null);
-      }, 2000);
+      // Cerrar modal y actualizar lista
+      handleCloseModal();
+      fetchProducts();
       
     } catch (err) {
-      setFormError(err.response?.data?.error || 'Error al crear el producto');
+      console.error('Error al guardar producto:', err);
+      setError(err.response?.data?.error || 'Error al guardar el producto');
     } finally {
-      setOperationLoading(false);
+      setLoading(false);
     }
   };
-  
-  // Actualizar producto
-  const handleUpdateProduct = async () => {
-    if (!validateForm()) return;
-    
-    setOperationLoading(true);
-    setFormError(null);
+
+  const handleDeleteProduct = async (productId) => {
+    if (!window.confirm('¿Está seguro que desea eliminar este producto?')) {
+      return;
+    }
     
     try {
-      // Preparar datos
-      const productData = {
-        ...formData,
-        price: parseFloat(formData.price),
-        discount_percentage: parseFloat(formData.discount_percentage)
-      };
+      setLoading(true);
+      setError(null);
       
-      // Llamar al servicio
-      await productService.updateProduct(currentProduct.id, productData);
+      await api.delete(`/products/${productId}`);
       
       // Actualizar lista
-      dispatch(fetchProducts({ 
-        page: pagination.page, 
-        filters: { per_page: 10 } 
-      }));
-      
-      // Mostrar mensaje de éxito
-      setOperationSuccess('Producto actualizado exitosamente');
-      
-      // Cerrar modal después de un momento
-      setTimeout(() => {
-        handleCloseModals();
-        setOperationSuccess(null);
-      }, 2000);
+      fetchProducts();
       
     } catch (err) {
-      setFormError(err.response?.data?.error || 'Error al actualizar el producto');
+      console.error('Error al eliminar producto:', err);
+      setError('No se pudo eliminar el producto. Intente nuevamente.');
     } finally {
-      setOperationLoading(false);
+      setLoading(false);
     }
   };
-  
-  // Eliminar producto
-  const handleDeleteProduct = async () => {
-    setOperationLoading(true);
-    setFormError(null);
-    
-    try {
-      // Llamar al servicio
-      await productService.deleteProduct(currentProduct.id);
-      
-      // Actualizar lista
-      dispatch(fetchProducts({ 
-        page: pagination.page, 
-        filters: { per_page: 10 } 
-      }));
-      
-      // Mostrar mensaje de éxito
-      setOperationSuccess('Producto eliminado exitosamente');
-      
-      // Cerrar modal después de un momento
-      setTimeout(() => {
-        handleCloseModals();
-        setOperationSuccess(null);
-      }, 2000);
-      
-    } catch (err) {
-      setFormError(err.response?.data?.error || 'Error al eliminar el producto');
-    } finally {
-      setOperationLoading(false);
-    }
-  };
-  
-  // Renderizar paginación
-  const renderPagination = () => {
-    const { page, pages } = pagination;
-    
-    // No mostrar si solo hay una página
-    if (pages <= 1) return null;
-    
-    // Crear items de paginación
-    const items = [];
-    
-    // Primera página
-    items.push(
-      <Pagination.First 
-        key="first" 
-        onClick={() => handlePageChange(1)}
-        disabled={page === 1}
-      />
-    );
-    
-    // Página anterior
-    items.push(
-      <Pagination.Prev 
-        key="prev" 
-        onClick={() => handlePageChange(page - 1)}
-        disabled={page === 1}
-      />
-    );
-    
-    // Mostrar un máximo de 5 páginas centradas alrededor de la página actual
-    const startPage = Math.max(1, page - 2);
-    const endPage = Math.min(pages, page + 2);
-    
-    // Añadir elipsis inicial si necesario
-    if (startPage > 1) {
-      items.push(<Pagination.Ellipsis key="ellipsis-start" disabled />);
-    }
-    
-    // Añadir páginas numeradas
-    for (let i = startPage; i <= endPage; i++) {
-      items.push(
-        <Pagination.Item
-          key={i}
-          active={i === page}
-          onClick={() => handlePageChange(i)}
-        >
-          {i}
-        </Pagination.Item>
-      );
-    }
-    
-    // Añadir elipsis final si necesario
-    if (endPage < pages) {
-      items.push(<Pagination.Ellipsis key="ellipsis-end" disabled />);
-    }
-    
-    // Página siguiente
-    items.push(
-      <Pagination.Next 
-        key="next" 
-        onClick={() => handlePageChange(page + 1)}
-        disabled={page === pages}
-      />
-    );
-    
-    // Última página
-    items.push(
-      <Pagination.Last 
-        key="last" 
-        onClick={() => handlePageChange(pages)}
-        disabled={page === pages}
-      />
-    );
-    
+
+  if (!user || user.role !== 'admin') {
     return (
-      <Pagination className="justify-content-center mt-4">
-        {items}
-      </Pagination>
+      <Box p={3}>
+        <Alert severity="error">
+          No tiene permisos para acceder a esta página
+        </Alert>
+      </Box>
     );
-  };
-  
+  }
+
   return (
-    <Container className="py-4">
-      <h1 className="mb-4">Gestión de Productos</h1>
+    <Box p={3}>
+      <Typography variant="h4" gutterBottom component="h1">
+        Gestión de Productos
+      </Typography>
       
-      <Card className="mb-4">
-        <Card.Body>
-          <div className="d-flex justify-content-between align-items-center mb-3">
-            <Button variant="primary" onClick={handleShowAddModal}>
-              <i className="bi bi-plus-circle me-2"></i>
-              Agregar Producto
+      {error && (
+        <Alert severity="error" className="mb-4">
+          {error}
+        </Alert>
+      )}
+      
+      {/* Filtros y búsqueda */}
+      <Paper elevation={2} sx={{ p: 2, mb: 3 }}>
+        <Grid container spacing={2} alignItems="center">
+          <Grid item xs={12} sm={6} md={4}>
+            <form onSubmit={handleSearchSubmit}>
+              <TextField
+                fullWidth
+                label="Buscar productos"
+                variant="outlined"
+                size="small"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                InputProps={{
+                  endAdornment: (
+                    <IconButton type="submit" edge="end">
+                      <Search />
+                    </IconButton>
+                  ),
+                }}
+              />
+            </form>
+          </Grid>
+          
+          <Grid item xs={12} sm={6} md={3}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Categoría</InputLabel>
+              <Select
+                value={categoryFilter}
+                label="Categoría"
+                onChange={(e) => setCategoryFilter(e.target.value)}
+              >
+                <MenuItem value="">Todas</MenuItem>
+                {productCategories.map((category) => (
+                  <MenuItem key={category.value} value={category.value}>
+                    {category.label}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+          
+          <Grid item xs={12} sm={12} md={5} textAlign="right">
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<Add />}
+              onClick={() => handleOpenModal()}
+            >
+              Nuevo Producto
             </Button>
-            
-            <Form onSubmit={handleSearch} className="d-flex">
-              <InputGroup>
-                <Form.Control
-                  type="text"
-                  placeholder="Buscar productos..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  aria-label="Buscar productos"
-                />
-                <Button variant="outline-secondary" onClick={handleResetSearch} type="button">
-                  <i className="bi bi-x-circle"></i>
-                </Button>
-                <Button variant="primary" type="submit">
-                  <i className="bi bi-search"></i>
-                </Button>
-              </InputGroup>
-            </Form>
-          </div>
-          
-          {error && (
-            <Alert variant="danger">
-              {error}
-            </Alert>
-          )}
-          
-          {isLoading ? (
-            <div className="text-center py-4">
-              <Spinner animation="border" role="status" variant="primary">
-                <span className="visually-hidden">Cargando...</span>
-              </Spinner>
-              <p className="mt-2">Cargando productos...</p>
-            </div>
-          ) : (
-            <>
-              <div className="table-responsive">
-                <Table striped hover>
-                  <thead>
-                    <tr>
-                      <th>SKU</th>
-                      <th>Nombre</th>
-                      <th>Categoría</th>
-                      <th>Precio</th>
-                      <th>Estado</th>
-                      <th>Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {products.length === 0 ? (
-                      <tr>
-                        <td colSpan="6" className="text-center">
-                          No hay productos disponibles
-                        </td>
-                      </tr>
-                    ) : (
-                      products.map(product => (
-                        <tr key={product.id}>
-                          <td>{product.sku}</td>
-                          <td>
-                            {product.name}
-                            <div className="small text-muted">
-                              {product.brand}
-                            </div>
-                          </td>
-                          <td>
-                            {product.category}
-                            {product.subcategory && (
-                              <div className="small text-muted">
-                                {product.subcategory}
-                              </div>
-                            )}
-                          </td>
-                          <td>
-                            {formatPrice(product.price)}
-                            {product.discount_percentage > 0 && (
-                              <div className="text-danger small">
-                                -{product.discount_percentage}%
-                              </div>
-                            )}
-                          </td>
-                          <td>
-                            {product.is_featured && (
-                              <Badge bg="warning" text="dark" className="me-1">
-                                Destacado
-                              </Badge>
-                            )}
-                            {product.is_new && (
-                              <Badge bg="info" className="me-1">
-                                Nuevo
-                              </Badge>
-                            )}
-                          </td>
-                          <td>
-                            <Button
-                              variant="outline-primary"
-                              size="sm"
-                              className="me-1 mb-1"
-                              onClick={() => handleShowEditModal(product)}
-                            >
-                              <i className="bi bi-pencil"></i>
-                            </Button>
-                            
-                            <Button
-                              variant="outline-danger"
-                              size="sm"
-                              className="mb-1"
-                              onClick={() => handleShowDeleteModal(product)}
-                            >
-                              <i className="bi bi-trash"></i>
-                            </Button>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </Table>
-              </div>
-              
-              {/* Paginación */}
-              {renderPagination()}
-            </>
-          )}
-        </Card.Body>
-      </Card>
+          </Grid>
+        </Grid>
+      </Paper>
       
-      {/* Modal para agregar producto */}
-      <Modal show={showAddModal} onHide={handleCloseModals} size="lg">
-        <Modal.Header closeButton>
-          <Modal.Title>Agregar Producto</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          {formError && (
-            <Alert variant="danger">{formError}</Alert>
-          )}
-          
-          {operationSuccess && (
-            <Alert variant="success">{operationSuccess}</Alert>
-          )}
-          
-          <Form>
-            <Row>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>SKU *</Form.Label>
-                  <Form.Control
-                    type="text"
-                    name="sku"
-                    value={formData.sku}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </Form.Group>
-              </Col>
-              
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Nombre *</Form.Label>
-                  <Form.Control
-                    type="text"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
-            
-            <Form.Group className="mb-3">
-              <Form.Label>Descripción</Form.Label>
-              <Form.Control
-                as="textarea"
-                rows={3}
-                name="description"
-                value={formData.description}
-                onChange={handleInputChange}
-              />
-            </Form.Group>
-            
-            <Row>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Marca</Form.Label>
-                  <Form.Control
-                    type="text"
-                    name="brand"
-                    value={formData.brand}
-                    onChange={handleInputChange}
-                  />
-                </Form.Group>
-              </Col>
-              
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Código del fabricante</Form.Label>
-                  <Form.Control
-                    type="text"
-                    name="brand_code"
-                    value={formData.brand_code}
-                    onChange={handleInputChange}
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
-            
-            <Row>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Categoría *</Form.Label>
-                  <Form.Select
+      {/* Tabla de productos */}
+      <Paper elevation={2}>
+        <TableContainer>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>SKU</TableCell>
+                <TableCell>Nombre</TableCell>
+                <TableCell>Categoría</TableCell>
+                <TableCell>Marca</TableCell>
+                <TableCell align="right">Precio</TableCell>
+                <TableCell align="center">Destacado</TableCell>
+                <TableCell align="center">Nuevo</TableCell>
+                <TableCell align="center">Acciones</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {loading && page === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={8} align="center">
+                    Cargando productos...
+                  </TableCell>
+                </TableRow>
+              ) : products.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={8} align="center">
+                    No se encontraron productos
+                  </TableCell>
+                </TableRow>
+              ) : (
+                products.map((product) => (
+                  <TableRow key={product.id}>
+                    <TableCell>{product.sku}</TableCell>
+                    <TableCell>{product.name}</TableCell>
+                    <TableCell>{product.category}</TableCell>
+                    <TableCell>{product.brand}</TableCell>
+                    <TableCell align="right">
+                      {new Intl.NumberFormat('es-CL', {
+                        style: 'currency',
+                        currency: 'CLP'
+                      }).format(product.current_price)}
+                    </TableCell>
+                    <TableCell align="center">
+                      {product.is_featured ? 'Sí' : 'No'}
+                    </TableCell>
+                    <TableCell align="center">
+                      {product.is_new ? 'Sí' : 'No'}
+                    </TableCell>
+                    <TableCell align="center">
+                      <IconButton 
+                        color="primary"
+                        onClick={() => handleOpenModal(product)}
+                      >
+                        <Edit />
+                      </IconButton>
+                      <IconButton
+                        color="error"
+                        onClick={() => handleDeleteProduct(product.id)}
+                      >
+                        <Delete />
+                      </IconButton>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+        
+        <TablePagination
+          rowsPerPageOptions={[5, 10, 25, 50]}
+          component="div"
+          count={-1} // No conocemos el total exacto desde la API
+          rowsPerPage={rowsPerPage}
+          page={page}
+          onPageChange={handleChangePage}
+          onRowsPerPageChange={handleChangeRowsPerPage}
+          labelDisplayedRows={({ from, to }) => `${from}-${to}`}
+        />
+      </Paper>
+      
+      {/* Modal de producto */}
+      <Dialog open={openModal} onClose={handleCloseModal} maxWidth="md" fullWidth>
+        <DialogTitle>
+          {currentProduct ? 'Editar Producto' : 'Nuevo Producto'}
+        </DialogTitle>
+        <DialogContent>
+          <form id="product-form" onSubmit={handleSubmitProduct}>
+            <Grid container spacing={2} sx={{ mt: 1 }}>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="SKU"
+                  name="sku"
+                  value={formData.sku}
+                  onChange={handleInputChange}
+                  required
+                  helperText="Formato: FER-XXXXX"
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Nombre"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  required
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Descripción"
+                  name="description"
+                  value={formData.description}
+                  onChange={handleInputChange}
+                  multiline
+                  rows={3}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Precio"
+                  name="price"
+                  type="number"
+                  value={formData.price}
+                  onChange={handleInputChange}
+                  required
+                  InputProps={{
+                    startAdornment: <Box component="span" mr={0.5}>$</Box>,
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Descuento (%)"
+                  name="discount_percentage"
+                  type="number"
+                  value={formData.discount_percentage}
+                  onChange={handleInputChange}
+                  InputProps={{
+                    inputProps: { min: 0, max: 100 }
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <FormControl fullWidth required>
+                  <InputLabel>Categoría</InputLabel>
+                  <Select
                     name="category"
                     value={formData.category}
+                    label="Categoría"
                     onChange={handleInputChange}
-                    required
                   >
-                    <option value="">Seleccionar categoría</option>
-                    {categories.map(category => (
-                      <option key={category.id} value={category.id}>
-                        {category.name}
-                      </option>
+                    {productCategories.map((category) => (
+                      <MenuItem key={category.value} value={category.value}>
+                        {category.label}
+                      </MenuItem>
                     ))}
-                  </Form.Select>
-                </Form.Group>
-              </Col>
-              
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Subcategoría</Form.Label>
-                  <Form.Control
-                    type="text"
-                    name="subcategory"
-                    value={formData.subcategory}
-                    onChange={handleInputChange}
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
-            
-            <Row>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Precio *</Form.Label>
-                  <InputGroup>
-                    <InputGroup.Text>$</InputGroup.Text>
-                    <Form.Control
-                      type="number"
-                      name="price"
-                      value={formData.price}
-                      onChange={handleInputChange}
-                      required
-                      min="0"
-                      step="0.01"
-                    />
-                  </InputGroup>
-                </Form.Group>
-              </Col>
-              
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Descuento (%)</Form.Label>
-                  <InputGroup>
-                    <Form.Control
-                      type="number"
-                      name="discount_percentage"
-                      value={formData.discount_percentage}
-                      onChange={handleInputChange}
-                      min="0"
-                      max="100"
-                    />
-                    <InputGroup.Text>%</InputGroup.Text>
-                  </InputGroup>
-                </Form.Group>
-              </Col>
-            </Row>
-            
-            <Row>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Check
-                    type="checkbox"
-                    label="Producto destacado"
-                    name="is_featured"
-                    checked={formData.is_featured}
-                    onChange={handleInputChange}
-                  />
-                </Form.Group>
-              </Col>
-              
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Check
-                    type="checkbox"
-                    label="Producto nuevo"
-                    name="is_new"
-                    checked={formData.is_new}
-                    onChange={handleInputChange}
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
-            
-            <Form.Group className="mb-3">
-              <Form.Label>URL de imagen</Form.Label>
-              <Form.Control
-                type="text"
-                name="image_url"
-                value={formData.image_url}
-                onChange={handleInputChange}
-                placeholder="https://ejemplo.com/imagen.jpg"
-              />
-            </Form.Group>
-          </Form>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={handleCloseModals}>
-            Cancelar
-          </Button>
-          <Button 
-            variant="primary" 
-            onClick={handleAddProduct}
-            disabled={operationLoading}
-          >
-            {operationLoading ? (
-              <>
-                <Spinner
-                  as="span"
-                  animation="border"
-                  size="sm"
-                  role="status"
-                  aria-hidden="true"
-                  className="me-2"
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Subcategoría"
+                  name="subcategory"
+                  value={formData.subcategory}
+                  onChange={handleInputChange}
                 />
-                Guardando...
-              </>
-            ) : (
-              'Guardar producto'
-            )}
-          </Button>
-        </Modal.Footer>
-      </Modal>
-      
-      {/* Modal para editar producto */}
-      <Modal show={showEditModal} onHide={handleCloseModals} size="lg">
-        <Modal.Header closeButton>
-          <Modal.Title>Editar Producto</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          {formError && (
-            <Alert variant="danger">{formError}</Alert>
-          )}
-          
-          {operationSuccess && (
-            <Alert variant="success">{operationSuccess}</Alert>
-          )}
-          
-          <Form>
-            <Row>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>SKU *</Form.Label>
-                  <Form.Control
-                    type="text"
-                    name="sku"
-                    value={formData.sku}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </Form.Group>
-              </Col>
-              
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Nombre *</Form.Label>
-                  <Form.Control
-                    type="text"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
-            
-            <Form.Group className="mb-3">
-              <Form.Label>Descripción</Form.Label>
-              <Form.Control
-                as="textarea"
-                rows={3}
-                name="description"
-                value={formData.description}
-                onChange={handleInputChange}
-              />
-            </Form.Group>
-            
-            <Row>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Marca</Form.Label>
-                  <Form.Control
-                    type="text"
-                    name="brand"
-                    value={formData.brand}
-                    onChange={handleInputChange}
-                  />
-                </Form.Group>
-              </Col>
-              
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Código del fabricante</Form.Label>
-                  <Form.Control
-                    type="text"
-                    name="brand_code"
-                    value={formData.brand_code}
-                    onChange={handleInputChange}
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
-            
-            <Row>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Categoría *</Form.Label>
-                  <Form.Select
-                    name="category"
-                    value={formData.category}
-                    onChange={handleInputChange}
-                    required
-                  >
-                    <option value="">Seleccionar categoría</option>
-                    {categories.map(category => (
-                      <option key={category.id} value={category.id}>
-                        {category.name}
-                      </option>
-                    ))}
-                  </Form.Select>
-                </Form.Group>
-              </Col>
-              
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Subcategoría</Form.Label>
-                  <Form.Control
-                    type="text"
-                    name="subcategory"
-                    value={formData.subcategory}
-                    onChange={handleInputChange}
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
-            
-            <Row>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Precio *</Form.Label>
-                  <InputGroup>
-                    <InputGroup.Text>$</InputGroup.Text>
-                    <Form.Control
-                      type="number"
-                      name="price"
-                      value={formData.price}
-                      onChange={handleInputChange}
-                      required
-                      min="0"
-                      step="0.01"
-                    />
-                  </InputGroup>
-                </Form.Group>
-              </Col>
-              
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Descuento (%)</Form.Label>
-                  <InputGroup>
-                    <Form.Control
-                      type="number"
-                      name="discount_percentage"
-                      value={formData.discount_percentage}
-                      onChange={handleInputChange}
-                      min="0"
-                      max="100"
-                    />
-                    <InputGroup.Text>%</InputGroup.Text>
-                  </InputGroup>
-                </Form.Group>
-              </Col>
-            </Row>
-            
-            <Row>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Check
-                    type="checkbox"
-                    label="Producto destacado"
-                    name="is_featured"
-                    checked={formData.is_featured}
-                    onChange={handleInputChange}
-                  />
-                </Form.Group>
-              </Col>
-              
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Check
-                    type="checkbox"
-                    label="Producto nuevo"
-                    name="is_new"
-                    checked={formData.is_new}
-                    onChange={handleInputChange}
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
-            
-            <Form.Group className="mb-3">
-              <Form.Label>URL de imagen</Form.Label>
-              <Form.Control
-                type="text"
-                name="image_url"
-                value={formData.image_url}
-                onChange={handleInputChange}
-                placeholder="https://ejemplo.com/imagen.jpg"
-              />
-            </Form.Group>
-          </Form>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={handleCloseModals}>
-            Cancelar
-          </Button>
-          <Button 
-            variant="primary" 
-            onClick={handleUpdateProduct}
-            disabled={operationLoading}
-          >
-            {operationLoading ? (
-              <>
-                <Spinner
-                  as="span"
-                  animation="border"
-                  size="sm"
-                  role="status"
-                  aria-hidden="true"
-                  className="me-2"
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Marca"
+                  name="brand"
+                  value={formData.brand}
+                  onChange={handleInputChange}
                 />
-                Actualizando...
-              </>
-            ) : (
-              'Actualizar producto'
-            )}
-          </Button>
-        </Modal.Footer>
-      </Modal>
-      
-      {/* Modal para confirmar eliminación */}
-      <Modal show={showDeleteModal} onHide={handleCloseModals}>
-        <Modal.Header closeButton>
-          <Modal.Title>Confirmar eliminación</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          {formError && (
-            <Alert variant="danger">{formError}</Alert>
-          )}
-          
-          {operationSuccess && (
-            <Alert variant="success">{operationSuccess}</Alert>
-          )}
-          
-          <p>
-            ¿Estás seguro de que deseas eliminar el producto 
-            <strong>{currentProduct?.name}</strong>?
-          </p>
-          <p className="text-danger">
-            Esta acción no se puede deshacer.
-          </p>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={handleCloseModals}>
-            Cancelar
-          </Button>
-          <Button 
-            variant="danger" 
-            onClick={handleDeleteProduct}
-            disabled={operationLoading}
-          >
-            {operationLoading ? (
-              <>
-                <Spinner
-                  as="span"
-                  animation="border"
-                  size="sm"
-                  role="status"
-                  aria-hidden="true"
-                  className="me-2"
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Código de Marca"
+                  name="brand_code"
+                  value={formData.brand_code}
+                  onChange={handleInputChange}
                 />
-                Eliminando...
-              </>
-            ) : (
-              'Eliminar producto'
-            )}
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="URL de Imagen"
+                  name="image_url"
+                  value={formData.image_url}
+                  onChange={handleInputChange}
+                  placeholder="/img/products/ejemplo.jpg"
+                />
+              </Grid>
+              <Grid item xs={6}>
+                <FormControl>
+                  <label>
+                    <input
+                      type="checkbox"
+                      name="is_featured"
+                      checked={formData.is_featured}
+                      onChange={handleInputChange}
+                    />
+                    {' '}Producto Destacado
+                  </label>
+                </FormControl>
+              </Grid>
+              <Grid item xs={6}>
+                <FormControl>
+                  <label>
+                    <input
+                      type="checkbox"
+                      name="is_new"
+                      checked={formData.is_new}
+                      onChange={handleInputChange}
+                    />
+                    {' '}Marcar como Nuevo
+                  </label>
+                </FormControl>
+              </Grid>
+            </Grid>
+          </form>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseModal}>Cancelar</Button>
+          <Button 
+            type="submit" 
+            form="product-form"
+            variant="contained" 
+            color="primary"
+            disabled={loading}
+          >
+            Guardar
           </Button>
-        </Modal.Footer>
-      </Modal>
-    </Container>
+        </DialogActions>
+      </Dialog>
+    </Box>
   );
 };
 

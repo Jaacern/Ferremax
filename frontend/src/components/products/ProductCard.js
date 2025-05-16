@@ -1,118 +1,107 @@
 import React from 'react';
-import { Card, Button, Badge } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
-// Importaremos las acciones del carrito cuando las creemos
-// import { addToCart } from '../../store/cart.slice';
+import { addToCart } from '../../store/cart.slice';
+import { formatPrice } from '../../utils/formatUtils';
 
+/**
+ * Componente que muestra una tarjeta de producto.
+ * 
+ * @param {Object} props - Propiedades del componente
+ * @param {Object} props.product - Datos del producto
+ * @returns {React.ReactNode} - Tarjeta de producto
+ */
 const ProductCard = ({ product }) => {
   const dispatch = useDispatch();
   
-  // Calcular precio con descuento si existe
+  // Calcular precio final con descuento
   const hasDiscount = product.discount_percentage > 0;
-  const discountedPrice = hasDiscount
-    ? product.price * (1 - product.discount_percentage / 100)
-    : null;
+  const currentPrice = product.current_price || product.price;
+  const originalPrice = product.price;
   
-  // Formatear precio
-  const formatPrice = (price) => {
-    return new Intl.NumberFormat('es-CL', {
-      style: 'currency',
-      currency: 'CLP'
-    }).format(price);
-  };
-  
-  const handleAddToCart = () => {
-    // Cuando implementemos el slice del carrito, descomentar esta línea
-    // dispatch(addToCart({ ...product, quantity: 1 }));
-    
-    // Por ahora, solo mostrar un mensaje en consola
-    console.log('Agregado al carrito:', product);
+  // Agregar al carrito
+  const handleAddToCart = (e) => {
+    e.preventDefault();
+    dispatch(addToCart({ product, quantity: 1 }));
   };
   
   return (
-    <Card className="product-card h-100">
-      {/* Badges de ofertas o productos nuevos */}
-      <div className="position-absolute top-0 start-0 mt-2 ms-2">
-        {hasDiscount && (
-          <Badge bg="danger" className="me-1">
-            -{product.discount_percentage}%
-          </Badge>
-        )}
-        
-        {product.is_new && (
-          <Badge bg="primary" className="me-1">
-            Nuevo
-          </Badge>
-        )}
-        
-        {product.is_featured && (
-          <Badge bg="warning" text="dark">
-            Destacado
-          </Badge>
-        )}
-      </div>
+    <div className="card h-100 product-card">
+      {/* Etiquetas de nuevo o descuento */}
+      {(product.is_new || hasDiscount) && (
+        <div className="position-absolute top-0 start-0 p-2">
+          {product.is_new && (
+            <span className="badge bg-primary me-1">Nuevo</span>
+          )}
+          {hasDiscount && (
+            <span className="badge bg-danger">-{product.discount_percentage}%</span>
+          )}
+        </div>
+      )}
       
       {/* Imagen del producto */}
       <Link to={`/products/${product.id}`}>
-        <Card.Img 
-          variant="top" 
-          src={product.image_url || 'https://via.placeholder.com/300x300?text=FERREMAS'} 
-          alt={product.name}
-          className="product-card-img"
-        />
+        <div className="product-image-container">
+          <img 
+            src={product.image_url || '/placeholder-image.jpg'} 
+            className="card-img-top product-image" 
+            alt={product.name}
+            style={{ height: '200px', objectFit: 'contain', padding: '1rem' }}
+          />
+        </div>
       </Link>
       
-      <Card.Body className="d-flex flex-column">
+      <div className="card-body d-flex flex-column">
         {/* Categoría */}
-        <small className="text-muted mb-1">
+        <p className="text-muted small mb-1">
           {product.category}
           {product.subcategory && ` > ${product.subcategory}`}
-        </small>
+        </p>
         
         {/* Nombre del producto */}
-        <Card.Title as="h5" className="mb-1">
-          <Link 
-            to={`/products/${product.id}`} 
-            className="text-decoration-none text-dark"
-          >
+        <h5 className="card-title">
+          <Link to={`/products/${product.id}`} className="text-decoration-none text-dark">
             {product.name}
           </Link>
-        </Card.Title>
+        </h5>
         
         {/* Marca */}
-        <small className="text-muted mb-2">
-          {product.brand}
-        </small>
+        {product.brand && (
+          <p className="text-muted small mb-1">
+            <strong>Marca:</strong> {product.brand}
+          </p>
+        )}
         
-        {/* Precios */}
-        <div className="mb-3">
-          {hasDiscount ? (
-            <>
-              <span className="product-card-price me-2">
-                {formatPrice(discountedPrice)}
+        {/* Precio y descuento */}
+        <div className="mt-auto">
+          <div className="mb-2">
+            {hasDiscount ? (
+              <>
+                <span className="text-danger fs-5 fw-bold me-2">
+                  {formatPrice(currentPrice)}
+                </span>
+                <span className="text-decoration-line-through text-muted">
+                  {formatPrice(originalPrice)}
+                </span>
+              </>
+            ) : (
+              <span className="fs-5 fw-bold">
+                {formatPrice(currentPrice)}
               </span>
-              <span className="product-card-original-price text-muted text-decoration-line-through">
-                {formatPrice(product.price)}
-              </span>
-            </>
-          ) : (
-            <span className="product-card-price">
-              {formatPrice(product.price)}
-            </span>
-          )}
+            )}
+          </div>
+          
+          {/* Botón de agregar al carrito */}
+          <button
+            className="btn btn-primary w-100"
+            onClick={handleAddToCart}
+          >
+            <i className="bi bi-cart-plus me-2"></i>
+            Agregar al Carrito
+          </button>
         </div>
-        
-        {/* Botón de compra */}
-        <Button 
-          variant="primary" 
-          className="mt-auto w-100"
-          onClick={handleAddToCart}
-        >
-          Agregar al carrito
-        </Button>
-      </Card.Body>
-    </Card>
+      </div>
+    </div>
   );
 };
 

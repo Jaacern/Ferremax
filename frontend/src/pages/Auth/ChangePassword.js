@@ -1,55 +1,107 @@
-import React, { useEffect } from 'react';
-import { Container, Row, Col, Card } from 'react-bootstrap';
+import React, { useState, useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { useSelector } from 'react-redux';
-import { 
-  selectIsAuthenticated, 
-  selectPasswordChangeRequired 
-} from '../../store/auth.slice';
-
+import { changePassword } from '../../store/auth.slice';
+import { Alert } from '@mui/material';
 import PasswordChange from '../../components/auth/PasswordChange';
 
 const ChangePassword = () => {
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(false);
+  const { user, loading, passwordChangeRequired } = useSelector(state => state.auth);
+  const dispatch = useDispatch();
   const navigate = useNavigate();
-  const isAuthenticated = useSelector(selectIsAuthenticated);
-  const passwordChangeRequired = useSelector(selectPasswordChangeRequired);
 
-  // Si no está autenticado, redirigir al login
+  // Verificar si el usuario está autenticado
   useEffect(() => {
-    if (!isAuthenticated) {
-      navigate('/login');
+    if (!user) {
+      navigate('/auth/login');
     }
-    // Si no necesita cambiar la contraseña y no está en la página por decisión propia
-    else if (!passwordChangeRequired && !window.location.search.includes('voluntary=true')) {
-      navigate('/');
+  }, [user, navigate]);
+
+  const handleChangePassword = async (passwordData) => {
+    try {
+      setError(null);
+      setSuccess(false);
+      
+      const resultAction = await dispatch(changePassword(passwordData));
+      
+      if (changePassword.fulfilled.match(resultAction)) {
+        setSuccess(true);
+        
+        // Si el cambio era requerido, redirigir según rol después de 2 segundos
+        if (passwordChangeRequired) {
+          setTimeout(() => {
+            const role = user.role;
+            switch (role) {
+              case 'admin':
+                navigate('/admin/dashboard');
+                break;
+              case 'vendor':
+                navigate('/vendor/dashboard');
+                break;
+              case 'warehouse':
+                navigate('/warehouse/dashboard');
+                break;
+              case 'accountant':
+                navigate('/accountant/dashboard');
+                break;
+              case 'customer':
+                navigate('/catalog');
+                break;
+              default:
+                navigate('/');
+            }
+          }, 2000);
+        }
+      } else {
+        setError(resultAction.error.message || 'Error al cambiar la contraseña');
+      }
+    } catch (err) {
+      setError('Error de conexión. Intente nuevamente.');
+      console.error(err);
     }
-  }, [isAuthenticated, passwordChangeRequired, navigate]);
+  };
 
   return (
-    <Container className="py-5">
-      <Row className="justify-content-center">
-        <Col xs={12} md={8} lg={6}>
-          <Card className="shadow-sm">
-            <Card.Body className="p-4">
-              <div className="text-center mb-4">
-                <h2 className="fw-bold">Cambiar Contraseña</h2>
-                {passwordChangeRequired ? (
-                  <p className="text-danger">
-                    Es necesario cambiar tu contraseña para continuar.
-                  </p>
-                ) : (
-                  <p className="text-muted">
-                    Actualiza tu contraseña para mantener tu cuenta segura.
-                  </p>
-                )}
-              </div>
-              
-              <PasswordChange />
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
-    </Container>
+    <div className="flex min-h-screen items-center justify-center bg-gray-100 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8 bg-white p-8 rounded-lg shadow-md">
+        <div>
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+            {passwordChangeRequired 
+              ? 'Es necesario cambiar tu contraseña' 
+              : 'Cambiar Contraseña'}
+          </h2>
+          {passwordChangeRequired && (
+            <p className="mt-2 text-center text-sm text-gray-600">
+              Por razones de seguridad, debes cambiar tu contraseña inicial
+            </p>
+          )}
+        </div>
+        
+        {error && (
+          <Alert severity="error" className="mb-4">
+            {error}
+          </Alert>
+        )}
+        
+        {success && (
+          <Alert severity="success" className="mb-4">
+            Contraseña actualizada correctamente
+            {passwordChangeRequired && (
+              <>. <br />Redirigiendo...
+              </>
+            )}
+          </Alert>
+        )}
+        
+        <PasswordChange 
+          onSubmit={handleChangePassword} 
+          loading={loading} 
+          isRequired={passwordChangeRequired} 
+        />
+      </div>
+    </div>
   );
 };
 

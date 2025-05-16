@@ -1,256 +1,243 @@
+/**
+ * Redux slice para manejar inventario
+ */
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import api from '../services/api';
+import stockService from '../services/stock.service';
 
 // Estado inicial
 const initialState = {
-  orders: [],
-  order: null,
-  pagination: {
-    page: 1,
-    total: 0,
-    pages: 1,
-    per_page: 10
-  },
-  filters: {
-    status: null,
-    fromDate: null,
-    toDate: null
-  },
-  isLoading: false,
-  error: null,
-  checkoutSuccess: false,
-  checkoutOrderId: null
+  stocks: [],
+  stockAlerts: [],
+  notification: null,
+  loading: false,
+  error: null
 };
 
-// Acción para obtener todas las órdenes del usuario
-export const fetchOrders = createAsyncThunk(
-  'orders/fetchOrders',
-  async ({ page = 1, perPage = 10, filters = {} }, { rejectWithValue }) => {
+// Acciones asíncronas
+export const fetchStocks = createAsyncThunk(
+  'stock/fetchStocks',
+  async (filters = {}, { rejectWithValue }) => {
     try {
-      const params = {
-        page,
-        per_page: perPage,
-        ...filters
-      };
-      
-      const response = await api.get('/orders', { params });
-      return response.data;
+      const response = await stockService.getStocks(filters);
+      return response.stocks;
     } catch (error) {
-      return rejectWithValue(
-        error.response?.data?.error || 'Error al cargar las órdenes'
-      );
+      return rejectWithValue(error.message || 'Error al obtener inventario');
     }
   }
 );
 
-// Acción para obtener una orden específica
-export const fetchOrderById = createAsyncThunk(
-  'orders/fetchOrderById',
-  async (orderId, { rejectWithValue }) => {
+export const updateStock = createAsyncThunk(
+  'stock/updateStock',
+  async ({ stockId, quantity, minStock }, { rejectWithValue }) => {
     try {
-      const response = await api.get(`/orders/${orderId}`);
-      return response.data.order;
+      const response = await stockService.updateStock(stockId, quantity, minStock);
+      return response.stock;
     } catch (error) {
-      return rejectWithValue(
-        error.response?.data?.error || 'Error al cargar la orden'
-      );
+      return rejectWithValue(error.message || 'Error al actualizar inventario');
     }
   }
 );
 
-// Acción para crear una nueva orden (checkout)
-export const createOrder = createAsyncThunk(
-  'orders/createOrder',
-  async (orderData, { rejectWithValue }) => {
+export const transferStock = createAsyncThunk(
+  'stock/transferStock',
+  async ({ productId, sourceBranchId, targetBranchId, quantity }, { rejectWithValue }) => {
     try {
-      const response = await api.post('/orders', orderData);
-      return response.data;
-    } catch (error) {
-      return rejectWithValue(
-        error.response?.data?.error || 'Error al crear la orden'
+      const response = await stockService.transferStock(
+        productId,
+        sourceBranchId,
+        targetBranchId,
+        quantity
       );
+      return response.transfer;
+    } catch (error) {
+      return rejectWithValue(error.message || 'Error al transferir inventario');
     }
   }
 );
 
-// Acción para actualizar el estado de una orden
-export const updateOrderStatus = createAsyncThunk(
-  'orders/updateOrderStatus',
-  async ({ orderId, status, notes }, { rejectWithValue }) => {
+export const fetchStockAlerts = createAsyncThunk(
+  'stock/fetchStockAlerts',
+  async (branchId = null, { rejectWithValue }) => {
     try {
-      const response = await api.put(`/orders/${orderId}/status`, {
-        status,
-        notes
-      });
-      return response.data;
+      const response = await stockService.getStockAlerts(branchId);
+      return response.alerts;
     } catch (error) {
-      return rejectWithValue(
-        error.response?.data?.error || 'Error al actualizar el estado de la orden'
-      );
+      return rejectWithValue(error.message || 'Error al obtener alertas de inventario');
     }
   }
 );
 
-// Acción para cancelar una orden
-export const cancelOrder = createAsyncThunk(
-  'orders/cancelOrder',
-  async ({ orderId, notes }, { rejectWithValue }) => {
+export const bulkUpdateStock = createAsyncThunk(
+  'stock/bulkUpdateStock',
+  async (updates, { rejectWithValue }) => {
     try {
-      const response = await api.put(`/orders/${orderId}/cancel`, { notes });
-      return response.data;
+      const response = await stockService.bulkUpdateStock(updates);
+      return response.updates;
     } catch (error) {
-      return rejectWithValue(
-        error.response?.data?.error || 'Error al cancelar la orden'
-      );
+      return rejectWithValue(error.message || 'Error al actualizar inventario masivamente');
+    }
+  }
+);
+
+export const initializeStock = createAsyncThunk(
+  'stock/initializeStock',
+  async ({ productId, quantity, minStock }, { rejectWithValue }) => {
+    try {
+      const response = await stockService.initializeStock(productId, quantity, minStock);
+      return response.results;
+    } catch (error) {
+      return rejectWithValue(error.message || 'Error al inicializar inventario');
     }
   }
 );
 
 // Slice
-const orderSlice = createSlice({
-  name: 'orders',
+const stockSlice = createSlice({
+  name: 'stock',
   initialState,
   reducers: {
-    clearOrderError: (state) => {
+    // Reiniciar error
+    resetError: (state) => {
       state.error = null;
     },
-    clearCurrentOrder: (state) => {
-      state.order = null;
+    
+    // Agregar alerta de stock (para notificaciones en tiempo real)
+    addStockAlert: (state, action) => {
+      // Verificar si ya existe la alerta para evitar duplicados
+      const alertExists = state.stockAlerts.some(
+        alert => alert.product_id === action.payload.product_id && 
+                alert.branch_id === action.payload.branch_id
+      );
+      
+      if (!alertExists) {
+        state.stockAlerts.unshift(action.payload);
+        
+        // Limitar a 20 alertas como máximo
+        if (state.stockAlerts.length > 20) {
+          state.stockAlerts.pop();
+        }
+      }
+      
+      // Guardar última notificación para mostrar
+      state.notification = action.payload;
     },
-    setOrderFilters: (state, action) => {
-      state.filters = {
-        ...state.filters,
-        ...action.payload
-      };
+    
+    // Limpiar notificación actual
+    clearStockNotification: (state) => {
+      state.notification = null;
     },
-    clearOrderFilters: (state) => {
-      state.filters = {
-        status: null,
-        fromDate: null,
-        toDate: null
-      };
-    },
-    resetCheckoutState: (state) => {
-      state.checkoutSuccess = false;
-      state.checkoutOrderId = null;
+    
+    // Limpiar todas las alertas
+    clearStockAlerts: (state) => {
+      state.stockAlerts = [];
     }
   },
   extraReducers: (builder) => {
-    // fetchOrders
-    builder.addCase(fetchOrders.pending, (state) => {
-      state.isLoading = true;
+    // Fetch Stocks
+    builder.addCase(fetchStocks.pending, (state) => {
+      state.loading = true;
       state.error = null;
     });
-    builder.addCase(fetchOrders.fulfilled, (state, action) => {
-      state.isLoading = false;
-      state.orders = action.payload.orders;
-      state.pagination = action.payload.pagination;
+    builder.addCase(fetchStocks.fulfilled, (state, action) => {
+      state.loading = false;
+      state.stocks = action.payload;
     });
-    builder.addCase(fetchOrders.rejected, (state, action) => {
-      state.isLoading = false;
+    builder.addCase(fetchStocks.rejected, (state, action) => {
+      state.loading = false;
       state.error = action.payload;
     });
-
-    // fetchOrderById
-    builder.addCase(fetchOrderById.pending, (state) => {
-      state.isLoading = true;
+    
+    // Update Stock
+    builder.addCase(updateStock.pending, (state) => {
+      state.loading = true;
       state.error = null;
     });
-    builder.addCase(fetchOrderById.fulfilled, (state, action) => {
-      state.isLoading = false;
-      state.order = action.payload;
+    builder.addCase(updateStock.fulfilled, (state, action) => {
+      state.loading = false;
+      // Actualizar en la lista
+      state.stocks = state.stocks.map(stock => 
+        stock.id === action.payload.id ? action.payload : stock
+      );
     });
-    builder.addCase(fetchOrderById.rejected, (state, action) => {
-      state.isLoading = false;
+    builder.addCase(updateStock.rejected, (state, action) => {
+      state.loading = false;
       state.error = action.payload;
     });
-
-    // createOrder
-    builder.addCase(createOrder.pending, (state) => {
-      state.isLoading = true;
-      state.error = null;
-      state.checkoutSuccess = false;
-      state.checkoutOrderId = null;
-    });
-    builder.addCase(createOrder.fulfilled, (state, action) => {
-      state.isLoading = false;
-      state.checkoutSuccess = true;
-      state.checkoutOrderId = action.payload.order.id;
-    });
-    builder.addCase(createOrder.rejected, (state, action) => {
-      state.isLoading = false;
-      state.error = action.payload;
-      state.checkoutSuccess = false;
-    });
-
-    // updateOrderStatus
-    builder.addCase(updateOrderStatus.pending, (state) => {
-      state.isLoading = true;
+    
+    // Transfer Stock
+    builder.addCase(transferStock.pending, (state) => {
+      state.loading = true;
       state.error = null;
     });
-    builder.addCase(updateOrderStatus.fulfilled, (state, action) => {
-      state.isLoading = false;
-      // Actualizar la orden en la lista si existe
-      if (state.orders.length > 0) {
-        const index = state.orders.findIndex(o => o.id === action.payload.order.id);
-        if (index !== -1) {
-          state.orders[index] = action.payload.order;
-        }
-      }
-      // Actualizar la orden actual si es la misma
-      if (state.order && state.order.id === action.payload.order.id) {
-        state.order = action.payload.order;
-      }
+    builder.addCase(transferStock.fulfilled, (state, action) => {
+      state.loading = false;
+      // No actualizamos directamente los stocks porque necesitaríamos
+      // recargar los datos para tener la información completa
     });
-    builder.addCase(updateOrderStatus.rejected, (state, action) => {
-      state.isLoading = false;
+    builder.addCase(transferStock.rejected, (state, action) => {
+      state.loading = false;
       state.error = action.payload;
     });
-
-    // cancelOrder
-    builder.addCase(cancelOrder.pending, (state) => {
-      state.isLoading = true;
+    
+    // Fetch Stock Alerts
+    builder.addCase(fetchStockAlerts.pending, (state) => {
+      state.loading = true;
       state.error = null;
     });
-    builder.addCase(cancelOrder.fulfilled, (state, action) => {
-      state.isLoading = false;
-      // Actualizar la orden en la lista si existe
-      if (state.orders.length > 0) {
-        const index = state.orders.findIndex(o => o.id === action.payload.order.id);
-        if (index !== -1) {
-          state.orders[index] = action.payload.order;
-        }
-      }
-      // Actualizar la orden actual si es la misma
-      if (state.order && state.order.id === action.payload.order.id) {
-        state.order = action.payload.order;
-      }
+    builder.addCase(fetchStockAlerts.fulfilled, (state, action) => {
+      state.loading = false;
+      state.stockAlerts = action.payload;
     });
-    builder.addCase(cancelOrder.rejected, (state, action) => {
-      state.isLoading = false;
+    builder.addCase(fetchStockAlerts.rejected, (state, action) => {
+      state.loading = false;
+      state.error = action.payload;
+    });
+    
+    // Bulk Update Stock
+    builder.addCase(bulkUpdateStock.pending, (state) => {
+      state.loading = true;
+      state.error = null;
+    });
+    builder.addCase(bulkUpdateStock.fulfilled, (state, action) => {
+      state.loading = false;
+      // No actualizamos directamente los stocks porque necesitaríamos
+      // recargar los datos para tener la información completa
+    });
+    builder.addCase(bulkUpdateStock.rejected, (state, action) => {
+      state.loading = false;
+      state.error = action.payload;
+    });
+    
+    // Initialize Stock
+    builder.addCase(initializeStock.pending, (state) => {
+      state.loading = true;
+      state.error = null;
+    });
+    builder.addCase(initializeStock.fulfilled, (state, action) => {
+      state.loading = false;
+      // No actualizamos directamente los stocks porque necesitaríamos
+      // recargar los datos para tener la información completa
+    });
+    builder.addCase(initializeStock.rejected, (state, action) => {
+      state.loading = false;
       state.error = action.payload;
     });
   }
 });
 
-// Acciones
-export const {
-  clearOrderError,
-  clearCurrentOrder,
-  setOrderFilters,
-  clearOrderFilters,
-  resetCheckoutState
-} = orderSlice.actions;
+// Exportar acciones y reducer
+export const { 
+  resetError, 
+  addStockAlert, 
+  clearStockNotification, 
+  clearStockAlerts 
+} = stockSlice.actions;
+
+export default stockSlice.reducer;
 
 // Selectores
-export const selectOrders = (state) => state.order.orders;
-export const selectCurrentOrder = (state) => state.order.order;
-export const selectOrdersPagination = (state) => state.order.pagination;
-export const selectOrdersFilters = (state) => state.order.filters;
-export const selectOrdersLoading = (state) => state.order.isLoading;
-export const selectOrdersError = (state) => state.order.error;
-export const selectCheckoutSuccess = (state) => state.order.checkoutSuccess;
-export const selectCheckoutOrderId = (state) => state.order.checkoutOrderId;
-
-// Reducer
-export default orderSlice.reducer;
+export const selectStocks = (state) => state.stock.stocks;
+export const selectStockAlerts = (state) => state.stock.stockAlerts;
+export const selectStockNotification = (state) => state.stock.notification;
+export const selectStockLoading = (state) => state.stock.loading;
+export const selectStockError = (state) => state.stock.error;

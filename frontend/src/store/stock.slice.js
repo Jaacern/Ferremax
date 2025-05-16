@@ -1,91 +1,92 @@
+/**
+ * Redux slice para manejar inventario
+ */
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import api from '../services/api';
+import stockService from '../services/stock.service';
 
 // Estado inicial
 const initialState = {
   stocks: [],
-  alerts: [],
-  pagination: {
-    page: 1,
-    total: 0,
-    pages: 1,
-    per_page: 10
-  },
-  filters: {
-    branch_id: null,
-    product_id: null,
-    category: null,
-    low_stock: false,
-    out_of_stock: false,
-    search: ''
-  },
-  isLoading: false,
-  error: null,
-  transferStatus: {
-    isLoading: false,
-    error: null,
-    success: false
-  },
-  updateStatus: {
-    isLoading: false,
-    error: null,
-    success: false
-  }
+  stockAlerts: [],
+  notification: null,
+  loading: false,
+  error: null
 };
 
 // Acciones asíncronas
 export const fetchStocks = createAsyncThunk(
   'stock/fetchStocks',
-  async (params, { rejectWithValue }) => {
+  async (filters = {}, { rejectWithValue }) => {
     try {
-      const response = await api.get('/stock', { params });
-      return response.data;
+      const response = await stockService.getStocks(filters);
+      return response.stocks;
     } catch (error) {
-      return rejectWithValue(
-        error.response?.data?.error || 'Error al cargar el stock'
-      );
-    }
-  }
-);
-
-export const fetchStockAlerts = createAsyncThunk(
-  'stock/fetchStockAlerts',
-  async (params, { rejectWithValue }) => {
-    try {
-      const response = await api.get('/stock/alerts', { params });
-      return response.data.alerts;
-    } catch (error) {
-      return rejectWithValue(
-        error.response?.data?.error || 'Error al cargar las alertas de stock'
-      );
+      return rejectWithValue(error.message || 'Error al obtener inventario');
     }
   }
 );
 
 export const updateStock = createAsyncThunk(
   'stock/updateStock',
-  async ({ stockId, stockData }, { rejectWithValue }) => {
+  async ({ stockId, quantity, minStock }, { rejectWithValue }) => {
     try {
-      const response = await api.put(`/stock/update/${stockId}`, stockData);
-      return response.data;
+      const response = await stockService.updateStock(stockId, quantity, minStock);
+      return response.stock;
     } catch (error) {
-      return rejectWithValue(
-        error.response?.data?.error || 'Error al actualizar el stock'
-      );
+      return rejectWithValue(error.message || 'Error al actualizar inventario');
     }
   }
 );
 
 export const transferStock = createAsyncThunk(
   'stock/transferStock',
-  async (transferData, { rejectWithValue }) => {
+  async ({ productId, sourceBranchId, targetBranchId, quantity }, { rejectWithValue }) => {
     try {
-      const response = await api.post('/stock/transfer', transferData);
-      return response.data;
-    } catch (error) {
-      return rejectWithValue(
-        error.response?.data?.error || 'Error al transferir el stock'
+      const response = await stockService.transferStock(
+        productId,
+        sourceBranchId,
+        targetBranchId,
+        quantity
       );
+      return response.transfer;
+    } catch (error) {
+      return rejectWithValue(error.message || 'Error al transferir inventario');
+    }
+  }
+);
+
+export const fetchStockAlerts = createAsyncThunk(
+  'stock/fetchStockAlerts',
+  async (branchId = null, { rejectWithValue }) => {
+    try {
+      const response = await stockService.getStockAlerts(branchId);
+      return response.alerts;
+    } catch (error) {
+      return rejectWithValue(error.message || 'Error al obtener alertas de inventario');
+    }
+  }
+);
+
+export const bulkUpdateStock = createAsyncThunk(
+  'stock/bulkUpdateStock',
+  async (updates, { rejectWithValue }) => {
+    try {
+      const response = await stockService.bulkUpdateStock(updates);
+      return response.updates;
+    } catch (error) {
+      return rejectWithValue(error.message || 'Error al actualizar inventario masivamente');
+    }
+  }
+);
+
+export const initializeStock = createAsyncThunk(
+  'stock/initializeStock',
+  async ({ productId, quantity, minStock }, { rejectWithValue }) => {
+    try {
+      const response = await stockService.initializeStock(productId, quantity, minStock);
+      return response.results;
+    } catch (error) {
+      return rejectWithValue(error.message || 'Error al inicializar inventario');
     }
   }
 );
@@ -95,173 +96,148 @@ const stockSlice = createSlice({
   name: 'stock',
   initialState,
   reducers: {
-    setStockFilters: (state, action) => {
-      state.filters = {
-        ...state.filters,
-        ...action.payload
-      };
-    },
-    clearStockFilters: (state) => {
-      state.filters = {
-        branch_id: null,
-        product_id: null,
-        category: null,
-        low_stock: false,
-        out_of_stock: false,
-        search: ''
-      };
-    },
-    clearStockErrors: (state) => {
+    // Reiniciar error
+    resetError: (state) => {
       state.error = null;
-      state.transferStatus.error = null;
-      state.updateStatus.error = null;
     },
-    clearTransferStatus: (state) => {
-      state.transferStatus = {
-        isLoading: false,
-        error: null,
-        success: false
-      };
-    },
-    clearUpdateStatus: (state) => {
-      state.updateStatus = {
-        isLoading: false,
-        error: null,
-        success: false
-      };
-    },
+    
+    // Agregar alerta de stock (para notificaciones en tiempo real)
     addStockAlert: (state, action) => {
-      // Agregar alerta a la lista si no existe
-      const alertExists = state.alerts.some(
+      // Verificar si ya existe la alerta para evitar duplicados
+      const alertExists = state.stockAlerts.some(
         alert => alert.product_id === action.payload.product_id && 
-                 alert.branch_id === action.payload.branch_id
+                alert.branch_id === action.payload.branch_id
       );
       
       if (!alertExists) {
-        state.alerts.push(action.payload);
+        state.stockAlerts.unshift(action.payload);
+        
+        // Limitar a 20 alertas como máximo
+        if (state.stockAlerts.length > 20) {
+          state.stockAlerts.pop();
+        }
       }
+      
+      // Guardar última notificación para mostrar
+      state.notification = action.payload;
+    },
+    
+    // Limpiar notificación actual
+    clearStockNotification: (state) => {
+      state.notification = null;
+    },
+    
+    // Limpiar todas las alertas
+    clearStockAlerts: (state) => {
+      state.stockAlerts = [];
     }
   },
   extraReducers: (builder) => {
-    // fetchStocks
+    // Fetch Stocks
     builder.addCase(fetchStocks.pending, (state) => {
-      state.isLoading = true;
+      state.loading = true;
       state.error = null;
     });
     builder.addCase(fetchStocks.fulfilled, (state, action) => {
-      state.isLoading = false;
-      state.stocks = action.payload.stocks;
-      
-      // Si hay información de paginación en la respuesta
-      if (action.payload.pagination) {
-        state.pagination = action.payload.pagination;
-      } else {
-        // Si no hay paginación, calcular basado en resultados
-        state.pagination.total = action.payload.stocks.length;
-        state.pagination.pages = Math.ceil(
-          action.payload.stocks.length / state.pagination.per_page
-        );
-      }
+      state.loading = false;
+      state.stocks = action.payload;
     });
     builder.addCase(fetchStocks.rejected, (state, action) => {
-      state.isLoading = false;
+      state.loading = false;
       state.error = action.payload;
     });
-
-    // fetchStockAlerts
+    
+    // Update Stock
+    builder.addCase(updateStock.pending, (state) => {
+      state.loading = true;
+      state.error = null;
+    });
+    builder.addCase(updateStock.fulfilled, (state, action) => {
+      state.loading = false;
+      // Actualizar en la lista
+      state.stocks = state.stocks.map(stock => 
+        stock.id === action.payload.id ? action.payload : stock
+      );
+    });
+    builder.addCase(updateStock.rejected, (state, action) => {
+      state.loading = false;
+      state.error = action.payload;
+    });
+    
+    // Transfer Stock
+    builder.addCase(transferStock.pending, (state) => {
+      state.loading = true;
+      state.error = null;
+    });
+    builder.addCase(transferStock.fulfilled, (state, action) => {
+      state.loading = false;
+      // No actualizamos directamente los stocks porque necesitaríamos
+      // recargar los datos para tener la información completa
+    });
+    builder.addCase(transferStock.rejected, (state, action) => {
+      state.loading = false;
+      state.error = action.payload;
+    });
+    
+    // Fetch Stock Alerts
     builder.addCase(fetchStockAlerts.pending, (state) => {
-      state.isLoading = true;
+      state.loading = true;
       state.error = null;
     });
     builder.addCase(fetchStockAlerts.fulfilled, (state, action) => {
-      state.isLoading = false;
-      state.alerts = action.payload;
+      state.loading = false;
+      state.stockAlerts = action.payload;
     });
     builder.addCase(fetchStockAlerts.rejected, (state, action) => {
-      state.isLoading = false;
+      state.loading = false;
       state.error = action.payload;
     });
-
-    // updateStock
-    builder.addCase(updateStock.pending, (state) => {
-      state.updateStatus.isLoading = true;
-      state.updateStatus.error = null;
-      state.updateStatus.success = false;
+    
+    // Bulk Update Stock
+    builder.addCase(bulkUpdateStock.pending, (state) => {
+      state.loading = true;
+      state.error = null;
     });
-    builder.addCase(updateStock.fulfilled, (state, action) => {
-      state.updateStatus.isLoading = false;
-      state.updateStatus.success = true;
-      
-      // Actualizar el stock en la lista de stocks
-      const index = state.stocks.findIndex(stock => stock.id === action.payload.stock.id);
-      if (index !== -1) {
-        state.stocks[index] = {
-          ...state.stocks[index],
-          ...action.payload.stock
-        };
-      }
+    builder.addCase(bulkUpdateStock.fulfilled, (state, action) => {
+      state.loading = false;
+      // No actualizamos directamente los stocks porque necesitaríamos
+      // recargar los datos para tener la información completa
     });
-    builder.addCase(updateStock.rejected, (state, action) => {
-      state.updateStatus.isLoading = false;
-      state.updateStatus.error = action.payload;
+    builder.addCase(bulkUpdateStock.rejected, (state, action) => {
+      state.loading = false;
+      state.error = action.payload;
     });
-
-    // transferStock
-    builder.addCase(transferStock.pending, (state) => {
-      state.transferStatus.isLoading = true;
-      state.transferStatus.error = null;
-      state.transferStatus.success = false;
+    
+    // Initialize Stock
+    builder.addCase(initializeStock.pending, (state) => {
+      state.loading = true;
+      state.error = null;
     });
-    builder.addCase(transferStock.fulfilled, (state, action) => {
-      state.transferStatus.isLoading = false;
-      state.transferStatus.success = true;
-      
-      // Actualizar stocks después de la transferencia
-      // (normalmente haríamos un refetch, pero podemos actualizar el estado si tenemos la info)
-      const { product_id, source_branch_id, target_branch_id, source_remaining, target_new_quantity } = action.payload.transfer;
-      
-      // Actualizar stock origen
-      const sourceIndex = state.stocks.findIndex(
-        stock => stock.product_id === product_id && stock.branch_id === source_branch_id
-      );
-      if (sourceIndex !== -1) {
-        state.stocks[sourceIndex].quantity = source_remaining;
-      }
-      
-      // Actualizar stock destino
-      const targetIndex = state.stocks.findIndex(
-        stock => stock.product_id === product_id && stock.branch_id === target_branch_id
-      );
-      if (targetIndex !== -1) {
-        state.stocks[targetIndex].quantity = target_new_quantity;
-      }
+    builder.addCase(initializeStock.fulfilled, (state, action) => {
+      state.loading = false;
+      // No actualizamos directamente los stocks porque necesitaríamos
+      // recargar los datos para tener la información completa
     });
-    builder.addCase(transferStock.rejected, (state, action) => {
-      state.transferStatus.isLoading = false;
-      state.transferStatus.error = action.payload;
+    builder.addCase(initializeStock.rejected, (state, action) => {
+      state.loading = false;
+      state.error = action.payload;
     });
   }
 });
 
-// Acciones
+// Exportar acciones y reducer
 export const { 
-  setStockFilters, 
-  clearStockFilters, 
-  clearStockErrors,
-  clearTransferStatus,
-  clearUpdateStatus,
-  addStockAlert
+  resetError, 
+  addStockAlert, 
+  clearStockNotification, 
+  clearStockAlerts 
 } = stockSlice.actions;
+
+export default stockSlice.reducer;
 
 // Selectores
 export const selectStocks = (state) => state.stock.stocks;
-export const selectStockAlerts = (state) => state.stock.alerts;
-export const selectStockPagination = (state) => state.stock.pagination;
-export const selectStockFilters = (state) => state.stock.filters;
-export const selectIsLoading = (state) => state.stock.isLoading;
+export const selectStockAlerts = (state) => state.stock.stockAlerts;
+export const selectStockNotification = (state) => state.stock.notification;
+export const selectStockLoading = (state) => state.stock.loading;
 export const selectStockError = (state) => state.stock.error;
-export const selectTransferStatus = (state) => state.stock.transferStatus;
-export const selectUpdateStatus = (state) => state.stock.updateStatus;
-
-// Reducer
-export default stockSlice.reducer;

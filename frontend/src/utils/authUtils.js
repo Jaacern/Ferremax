@@ -1,180 +1,138 @@
-import jwt_decode from 'jwt-decode';
+/**
+ * Utilidades para autenticación y manejo de tokens
+ */
+import { jwtDecode } from 'jwt-decode';
+import { ROLES } from '../config';
 
 /**
- * Verifica si el token JWT es válido y no ha expirado
+ * Verificar si un token JWT es válido
  * @param {string} token - Token JWT
- * @returns {boolean} - Verdadero si el token es válido
+ * @returns {boolean} true si el token es válido y no ha expirado
  */
 export const isValidToken = (token) => {
   if (!token) return false;
   
   try {
-    const decoded = jwt_decode(token);
+    const decoded = jwtDecode(token);
     const currentTime = Date.now() / 1000;
     
-    // Verificar si el token no ha expirado
+    // Verificar si el token ha expirado
     return decoded.exp > currentTime;
   } catch (error) {
-    console.error('Error decodificando token:', error);
+    console.error('Error al decodificar token:', error);
     return false;
   }
 };
 
 /**
- * Decodifica un token JWT y retorna su contenido
+ * Decodificar token JWT
  * @param {string} token - Token JWT
- * @returns {object|null} - Contenido del token o null si es inválido
+ * @returns {Object|null} Contenido decodificado del token o null si es inválido
  */
 export const decodeToken = (token) => {
   if (!token) return null;
   
   try {
-    return jwt_decode(token);
+    return jwtDecode(token);
   } catch (error) {
-    console.error('Error decodificando token:', error);
+    console.error('Error al decodificar token:', error);
     return null;
   }
 };
 
 /**
- * Obtiene el rol del usuario desde el token
+ * Obtener rol del usuario desde un token JWT
  * @param {string} token - Token JWT
- * @returns {string|null} - Rol del usuario o null si no se puede determinar
+ * @returns {string|null} Rol del usuario o null si es inválido
  */
 export const getUserRole = (token) => {
-  const decoded = decodeToken(token);
-  return decoded ? decoded.role : null;
-};
-
-/**
- * Verifica si el usuario tiene cierto rol
- * @param {string} token - Token JWT
- * @param {string|string[]} roles - Rol o array de roles a verificar
- * @returns {boolean} - Verdadero si el usuario tiene alguno de los roles especificados
- */
-export const hasRole = (token, roles) => {
-  const userRole = getUserRole(token);
-  if (!userRole) return false;
-  
-  if (Array.isArray(roles)) {
-    return roles.includes(userRole);
-  }
-  
-  return userRole === roles;
-};
-
-/**
- * Verifica si el usuario está autenticado
- * @returns {boolean} - Verdadero si el usuario está autenticado
- */
-export const isAuthenticated = () => {
-  const token = localStorage.getItem('token');
-  return isValidToken(token);
-};
-
-/**
- * Obtiene el ID del usuario desde el token
- * @returns {number|null} - ID del usuario o null si no está autenticado
- */
-export const getUserId = () => {
-  const token = localStorage.getItem('token');
   if (!token) return null;
   
   try {
-    const decoded = jwt_decode(token);
-    return decoded.sub || null; // sub es el standard para el subject (ID de usuario)
+    const decoded = jwtDecode(token);
+    return decoded.role;
   } catch (error) {
-    console.error('Error obteniendo ID de usuario:', error);
+    console.error('Error al obtener rol:', error);
     return null;
   }
 };
 
 /**
- * Guarda el token JWT en el almacenamiento local
+ * Verificar si un usuario tiene un rol específico
+ * @param {string|Array} allowedRoles - Rol o roles permitidos
+ * @param {string} userRole - Rol del usuario
+ * @returns {boolean} true si el usuario tiene el rol permitido
+ */
+export const hasRole = (allowedRoles, userRole) => {
+  if (!userRole) return false;
+  
+  if (Array.isArray(allowedRoles)) {
+    return allowedRoles.includes(userRole);
+  }
+  
+  return allowedRoles === userRole;
+};
+
+/**
+ * Verificar si un usuario es administrador
+ * @param {string} userRole - Rol del usuario
+ * @returns {boolean} true si el usuario es administrador
+ */
+export const isAdmin = (userRole) => {
+  return userRole === ROLES.ADMIN;
+};
+
+/**
+ * Verificar si se requiere cambio de contraseña
  * @param {string} token - Token JWT
+ * @returns {boolean} true si se requiere cambio de contraseña
  */
-export const setAuthToken = (token) => {
-  if (token) {
-    localStorage.setItem('token', token);
-  } else {
-    localStorage.removeItem('token');
-  }
-};
-
-/**
- * Obtiene el token JWT del almacenamiento local
- * @returns {string|null} - Token JWT o null si no existe
- */
-export const getAuthToken = () => {
-  return localStorage.getItem('token');
-};
-
-/**
- * Elimina el token y datos de sesión
- */
-export const clearAuth = () => {
-  localStorage.removeItem('token');
-  localStorage.removeItem('user');
-};
-
-/**
- * Comprueba si la contraseña cumple con los requisitos de seguridad
- * @param {string} password - Contraseña a validar
- * @returns {object} - Objeto con resultado y mensaje
- */
-export const validatePassword = (password) => {
-  const minLength = 8;
-  const hasUpperCase = /[A-Z]/.test(password);
-  const hasLowerCase = /[a-z]/.test(password);
-  const hasNumbers = /\d/.test(password);
-  const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
-  
-  if (password.length < minLength) {
-    return {
-      isValid: false,
-      message: `La contraseña debe tener al menos ${minLength} caracteres`
-    };
-  }
-  
-  if (!hasUpperCase || !hasLowerCase) {
-    return {
-      isValid: false,
-      message: 'La contraseña debe incluir mayúsculas y minúsculas'
-    };
-  }
-  
-  if (!hasNumbers) {
-    return {
-      isValid: false,
-      message: 'La contraseña debe incluir al menos un número'
-    };
-  }
-  
-  if (!hasSpecialChar) {
-    return {
-      isValid: false,
-      message: 'La contraseña debe incluir al menos un caracter especial'
-    };
-  }
-  
-  return {
-    isValid: true,
-    message: 'Contraseña válida'
-  };
-};
-
-/**
- * Comprueba si el usuario requiere cambio de contraseña
- * @returns {boolean} - Verdadero si se requiere cambio de contraseña
- */
-export const requiresPasswordChange = () => {
-  const token = localStorage.getItem('token');
+export const isPasswordChangeRequired = (token) => {
   if (!token) return false;
   
   try {
-    const decoded = jwt_decode(token);
+    const decoded = jwtDecode(token);
     return decoded.password_change_required === true;
   } catch (error) {
+    console.error('Error al verificar cambio de contraseña:', error);
     return false;
+  }
+};
+
+/**
+ * Obtener ID del usuario desde un token JWT
+ * @param {string} token - Token JWT
+ * @returns {number|null} ID del usuario o null si es inválido
+ */
+export const getUserId = (token) => {
+  if (!token) return null;
+  
+  try {
+    const decoded = jwtDecode(token);
+    return decoded.sub; // sub contiene el ID del usuario
+  } catch (error) {
+    console.error('Error al obtener ID de usuario:', error);
+    return null;
+  }
+};
+
+/**
+ * Obtener tiempo restante de validez del token en segundos
+ * @param {string} token - Token JWT
+ * @returns {number} Segundos restantes de validez, 0 si expiró
+ */
+export const getTokenRemainingTime = (token) => {
+  if (!token) return 0;
+  
+  try {
+    const decoded = jwtDecode(token);
+    const currentTime = Date.now() / 1000;
+    const expiryTime = decoded.exp;
+    
+    const remainingTime = expiryTime - currentTime;
+    return remainingTime > 0 ? Math.floor(remainingTime) : 0;
+  } catch (error) {
+    console.error('Error al obtener tiempo restante:', error);
+    return 0;
   }
 };

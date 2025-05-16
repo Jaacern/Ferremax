@@ -1,718 +1,641 @@
 import React, { useState, useEffect } from 'react';
+import { useSelector } from 'react-redux';
+import api from '../../services/api';
 import { 
-  Container, 
-  Row, 
-  Col, 
-  Card, 
-  Table, 
-  Button, 
-  Form, 
-  Badge, 
-  Pagination, 
-  Modal, 
-  Spinner, 
-  Alert 
-} from 'react-bootstrap';
-import { Link } from 'react-router-dom';
-
-// Este servicio aún no existe, pero lo crearemos más adelante
-// import orderService from '../../services/order.service';
+  Box, Typography, Paper, TextField, Button, 
+  Table, TableBody, TableCell, TableContainer, 
+  TableHead, TableRow, TablePagination, 
+  Alert, IconButton, Grid, FormControl,
+  InputLabel, Select, MenuItem, Chip,
+  Dialog, DialogActions, DialogContent, 
+  DialogTitle, List, ListItem, ListItemText,
+  Divider, Accordion, AccordionSummary, 
+  AccordionDetails
+} from '@mui/material';
+import { 
+  Search, Visibility, LocalShipping,
+  ExpandMore, Done, Close, Approval
+} from '@mui/icons-material';
 
 const OrderManagement = () => {
-  // Estados para la gestión de pedidos
+  const { user } = useSelector(state => state.auth);
   const [orders, setOrders] = useState([]);
-  const [filteredOrders, setFilteredOrders] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
-  // Estados para la paginación
-  const [currentPage, setCurrentPage] = useState(1);
-  const [ordersPerPage] = useState(10);
-  
-  // Estados para los filtros
-  const [filters, setFilters] = useState({
-    orderNumber: '',
-    customerName: '',
-    status: '',
-    fromDate: '',
-    toDate: '',
-    minAmount: '',
-    maxAmount: ''
+  // Estado para paginación y filtros
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [dateFilter, setDateFilter] = useState({
+    from: '',
+    to: ''
   });
   
-  // Estados para el modal de detalles del pedido
-  const [selectedOrder, setSelectedOrder] = useState(null);
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  // Estado para modal de detalle de orden
+  const [openModal, setOpenModal] = useState(false);
+  const [currentOrder, setCurrentOrder] = useState(null);
+  const [orderDetail, setOrderDetail] = useState(null);
   
-  // Estados para el modal de cambio de estado
-  const [showStatusModal, setShowStatusModal] = useState(false);
+  // Estado para cambio de estado
+  const [statusChangeOpen, setStatusChangeOpen] = useState(false);
   const [newStatus, setNewStatus] = useState('');
-  const [statusNote, setStatusNote] = useState('');
-  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [statusNotes, setStatusNotes] = useState('');
   
-  // Cargar datos de pedidos al montar el componente
+  // Opciones de estado de orden
+  const orderStatuses = [
+    { value: 'PENDING', label: 'Pendiente', color: 'warning' },
+    { value: 'APPROVED', label: 'Aprobado', color: 'info' },
+    { value: 'REJECTED', label: 'Rechazado', color: 'error' },
+    { value: 'PREPARING', label: 'En preparación', color: 'primary' },
+    { value: 'READY', label: 'Listo para entrega', color: 'success' },
+    { value: 'SHIPPED', label: 'Enviado', color: 'secondary' },
+    { value: 'DELIVERED', label: 'Entregado', color: 'success' },
+    { value: 'CANCELLED', label: 'Cancelado', color: 'default' }
+  ];
+
   useEffect(() => {
-    const fetchOrders = async () => {
-      setIsLoading(true);
+    fetchOrders();
+  }, [page, rowsPerPage, statusFilter, dateFilter]);
+
+  const fetchOrders = async () => {
+    try {
+      setLoading(true);
       setError(null);
       
-      try {
-        // En una aplicación real, esto sería una llamada a la API
-        // const response = await orderService.getAllOrders();
-        // setOrders(response.data);
-        
-        // Simular datos de pedidos para desarrollo
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        const mockOrders = Array.from({ length: 50 }, (_, index) => ({
-          id: index + 1,
-          orderNumber: `ORD-${Math.floor(Math.random() * 1000000).toString().padStart(6, '0')}`,
-          customer: {
-            id: Math.floor(Math.random() * 100),
-            name: ['Juan Pérez', 'María López', 'Carlos Rodríguez', 'Ana Martínez', 'Pedro Sánchez'][Math.floor(Math.random() * 5)]
-          },
-          date: new Date(2025, 4, Math.floor(Math.random() * 14) + 1).toLocaleDateString('es-CL'),
-          createdAt: new Date(2025, 4, Math.floor(Math.random() * 14) + 1).toISOString(),
-          status: ['Pendiente', 'Aprobado', 'En preparación', 'Enviado', 'Entregado', 'Cancelado'][Math.floor(Math.random() * 6)],
-          total: Math.floor(Math.random() * 500000) + 10000,
-          items: Array.from({ length: Math.floor(Math.random() * 5) + 1 }, (_, i) => ({
-            id: i + 1,
-            productId: Math.floor(Math.random() * 100),
-            productName: [
-              'Taladro Percutor Bosch', 
-              'Martillo Stanley', 
-              'Sierra Circular Dewalt', 
-              'Juego de Destornilladores Makita', 
-              'Pintura Látex Sipa 20L'
-            ][Math.floor(Math.random() * 5)],
-            quantity: Math.floor(Math.random() * 5) + 1,
-            unitPrice: Math.floor(Math.random() * 100000) + 5000,
-            totalPrice: 0
-          })).map(item => ({
-            ...item,
-            totalPrice: item.quantity * item.unitPrice
-          })),
-          deliveryMethod: Math.random() > 0.5 ? 'Retiro en tienda' : 'Despacho a domicilio',
-          branch: Math.random() > 0.5 ? 'Casa Matriz Santiago' : 'Sucursal Providencia',
-          shippingAddress: Math.random() > 0.5 ? 'Av. Libertador O\'Higgins 1111, Santiago' : null,
-          paymentMethod: ['Tarjeta de crédito', 'Tarjeta de débito', 'Transferencia bancaria'][Math.floor(Math.random() * 3)],
-          paymentStatus: Math.random() > 0.3 ? 'Pagado' : 'Pendiente'
-        }));
-        
-        setOrders(mockOrders);
-        setFilteredOrders(mockOrders);
-      } catch (err) {
-        console.error('Error al cargar pedidos:', err);
-        setError('Error al cargar los pedidos. Por favor, intenta nuevamente.');
-      } finally {
-        setIsLoading(false);
+      // Construir parámetros de consulta
+      const params = new URLSearchParams({
+        page: page + 1,  // API usa base 1 para páginas
+        per_page: rowsPerPage
+      });
+      
+      if (statusFilter) {
+        params.append('status', statusFilter);
       }
-    };
-    
+      
+      if (dateFilter.from) {
+        params.append('from_date', dateFilter.from);
+      }
+      
+      if (dateFilter.to) {
+        params.append('to_date', dateFilter.to);
+      }
+      
+      if (searchTerm) {
+        params.append('search', searchTerm);
+      }
+      
+      const response = await api.get(`/orders?${params.toString()}`);
+      setOrders(response.data.orders);
+      
+    } catch (err) {
+      console.error('Error al cargar órdenes:', err);
+      setError('No se pudieron cargar las órdenes. Intente nuevamente.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchOrderDetail = async (orderId) => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await api.get(`/orders/${orderId}`);
+      setOrderDetail(response.data.order);
+      
+    } catch (err) {
+      console.error('Error al cargar detalle de orden:', err);
+      setError('No se pudo cargar el detalle de la orden. Intente nuevamente.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
     fetchOrders();
-  }, []);
-  
-  // Filtrar pedidos cuando cambian los filtros
-  useEffect(() => {
-    const result = orders.filter(order => {
-      const matchesOrderNumber = 
-        !filters.orderNumber || 
-        order.orderNumber.toLowerCase().includes(filters.orderNumber.toLowerCase());
-      
-      const matchesCustomerName = 
-        !filters.customerName || 
-        order.customer.name.toLowerCase().includes(filters.customerName.toLowerCase());
-      
-      const matchesStatus = 
-        !filters.status || 
-        order.status === filters.status;
-      
-      const orderDate = new Date(order.createdAt);
-      
-      const matchesFromDate = 
-        !filters.fromDate || 
-        orderDate >= new Date(filters.fromDate);
-      
-      const matchesToDate = 
-        !filters.toDate || 
-        orderDate <= new Date(filters.toDate);
-      
-      const matchesMinAmount = 
-        !filters.minAmount || 
-        order.total >= parseFloat(filters.minAmount);
-      
-      const matchesMaxAmount = 
-        !filters.maxAmount || 
-        order.total <= parseFloat(filters.maxAmount);
-      
-      return (
-        matchesOrderNumber &&
-        matchesCustomerName &&
-        matchesStatus &&
-        matchesFromDate &&
-        matchesToDate &&
-        matchesMinAmount &&
-        matchesMaxAmount
-      );
-    });
-    
-    setFilteredOrders(result);
-    setCurrentPage(1); // Resetear a la primera página al filtrar
-  }, [filters, orders]);
-  
-  // Obtener pedidos de la página actual
-  const indexOfLastOrder = currentPage * ordersPerPage;
-  const indexOfFirstOrder = indexOfLastOrder - ordersPerPage;
-  const currentOrders = filteredOrders.slice(indexOfFirstOrder, indexOfLastOrder);
-  
-  // Cambiar de página
-  const paginate = (pageNumber) => setCurrentPage(pageNumber);
-  
-  // Manejar cambios en los filtros
-  const handleFilterChange = (e) => {
+  };
+
+  const handleDateFilterChange = (e) => {
     const { name, value } = e.target;
-    setFilters({
-      ...filters,
+    setDateFilter({
+      ...dateFilter,
       [name]: value
     });
   };
-  
-  // Limpiar filtros
-  const handleClearFilters = () => {
-    setFilters({
-      orderNumber: '',
-      customerName: '',
-      status: '',
-      fromDate: '',
-      toDate: '',
-      minAmount: '',
-      maxAmount: ''
-    });
+
+  const handleViewOrder = (order) => {
+    setCurrentOrder(order);
+    fetchOrderDetail(order.id);
+    setOpenModal(true);
   };
-  
-  // Abrir modal de detalles del pedido
-  const handleViewDetails = (order) => {
-    setSelectedOrder(order);
-    setShowDetailsModal(true);
+
+  const handleCloseModal = () => {
+    setOpenModal(false);
+    setCurrentOrder(null);
+    setOrderDetail(null);
   };
-  
-  // Abrir modal para cambiar estado
-  const handleChangeStatus = (order) => {
-    setSelectedOrder(order);
-    setNewStatus(order.status);
-    setStatusNote('');
-    setShowStatusModal(true);
+
+  const handleOpenStatusChange = (order) => {
+    setCurrentOrder(order);
+    setNewStatus('');
+    setStatusNotes('');
+    setStatusChangeOpen(true);
   };
-  
-  // Guardar cambio de estado
-  const handleSaveStatus = async () => {
-    if (!selectedOrder || !newStatus) return;
-    
-    setIsUpdatingStatus(true);
+
+  const handleCloseStatusChange = () => {
+    setStatusChangeOpen(false);
+    setCurrentOrder(null);
+    setNewStatus('');
+    setStatusNotes('');
+  };
+
+  const handleUpdateStatus = async () => {
+    if (!newStatus || !currentOrder) {
+      return;
+    }
     
     try {
-      // En una aplicación real, esto sería una llamada a la API
-      // await orderService.updateOrderStatus(selectedOrder.id, { status: newStatus, notes: statusNote });
+      setLoading(true);
+      setError(null);
       
-      // Simular actualización
-      await new Promise(resolve => setTimeout(resolve, 800));
+      await api.put(`/orders/${currentOrder.id}/status`, {
+        status: newStatus,
+        notes: statusNotes
+      });
       
-      // Actualizar el estado localmente
-      const updatedOrders = orders.map(order => 
-        order.id === selectedOrder.id 
-          ? { ...order, status: newStatus }
-          : order
-      );
+      // Cerrar modal y actualizar listas
+      handleCloseStatusChange();
+      fetchOrders();
       
-      setOrders(updatedOrders);
-      setShowStatusModal(false);
-      
-      // Mostrar notificación de éxito (en una app real usaríamos un toast o similar)
-      alert(`Estado del pedido ${selectedOrder.orderNumber} actualizado a "${newStatus}"`);
+      // Si el detalle está abierto, actualizarlo
+      if (openModal && orderDetail) {
+        fetchOrderDetail(currentOrder.id);
+      }
       
     } catch (err) {
       console.error('Error al actualizar estado:', err);
-      alert('Error al actualizar el estado del pedido. Por favor, intenta nuevamente.');
+      setError(err.response?.data?.error || 'Error al actualizar el estado');
     } finally {
-      setIsUpdatingStatus(false);
+      setLoading(false);
     }
   };
-  
-  // Formatear precio
-  const formatPrice = (price) => {
+
+  // Renderizar chip de estado
+  const renderStatusChip = (status) => {
+    const statusInfo = orderStatuses.find(s => s.value === status) || 
+      { label: status, color: 'default' };
+    
+    return (
+      <Chip 
+        label={statusInfo.label} 
+        color={statusInfo.color}
+        size="small"
+      />
+    );
+  };
+
+  // Formatear fecha
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    
+    const date = new Date(dateString);
+    return new Intl.DateTimeFormat('es-CL', {
+      dateStyle: 'medium',
+      timeStyle: 'short'
+    }).format(date);
+  };
+
+  // Formatear monto
+  const formatCurrency = (amount) => {
     return new Intl.NumberFormat('es-CL', {
       style: 'currency',
       currency: 'CLP'
-    }).format(price);
+    }).format(amount);
   };
-  
-  // Renderizar paginación
-  const renderPagination = () => {
-    const totalPages = Math.ceil(filteredOrders.length / ordersPerPage);
-    
-    if (totalPages <= 1) return null;
-    
-    const items = [];
-    
-    // Primera página
-    items.push(
-      <Pagination.First
-        key="first"
-        onClick={() => paginate(1)}
-        disabled={currentPage === 1}
-      />
-    );
-    
-    // Página anterior
-    items.push(
-      <Pagination.Prev
-        key="prev"
-        onClick={() => paginate(currentPage - 1)}
-        disabled={currentPage === 1}
-      />
-    );
-    
-    // Mostrar un máximo de 5 páginas centradas en la página actual
-    const startPage = Math.max(1, currentPage - 2);
-    const endPage = Math.min(totalPages, startPage + 4);
-    
-    // Añadir elipsis inicial si necesario
-    if (startPage > 1) {
-      items.push(<Pagination.Ellipsis key="ellipsis-start" disabled />);
-    }
-    
-    // Añadir páginas numeradas
-    for (let i = startPage; i <= endPage; i++) {
-      items.push(
-        <Pagination.Item
-          key={i}
-          active={i === currentPage}
-          onClick={() => paginate(i)}
-        >
-          {i}
-        </Pagination.Item>
-      );
-    }
-    
-    // Añadir elipsis final si necesario
-    if (endPage < totalPages) {
-      items.push(<Pagination.Ellipsis key="ellipsis-end" disabled />);
-    }
-    
-    // Página siguiente
-    items.push(
-      <Pagination.Next
-        key="next"
-        onClick={() => paginate(currentPage + 1)}
-        disabled={currentPage === totalPages}
-      />
-    );
-    
-    // Última página
-    items.push(
-      <Pagination.Last
-        key="last"
-        onClick={() => paginate(totalPages)}
-        disabled={currentPage === totalPages}
-      />
-    );
-    
+
+  if (!user || user.role !== 'admin') {
     return (
-      <Pagination className="justify-content-center mt-4">
-        {items}
-      </Pagination>
+      <Box p={3}>
+        <Alert severity="error">
+          No tiene permisos para acceder a esta página
+        </Alert>
+      </Box>
     );
-  };
-  
+  }
+
   return (
-    <Container fluid className="py-4">
-      <h1 className="mb-4">Gestión de Pedidos</h1>
+    <Box p={3}>
+      <Typography variant="h4" gutterBottom component="h1">
+        Gestión de Pedidos
+      </Typography>
       
-      {/* Filtros */}
-      <Card className="mb-4 border-0 shadow-sm">
-        <Card.Body>
-          <h5 className="mb-3">Filtros</h5>
-          <Row className="g-3">
-            <Col md={6} lg={3}>
-              <Form.Group>
-                <Form.Label>Número de pedido</Form.Label>
-                <Form.Control
-                  type="text"
-                  name="orderNumber"
-                  value={filters.orderNumber}
-                  onChange={handleFilterChange}
-                  placeholder="Buscar por número"
-                />
-              </Form.Group>
-            </Col>
-            
-            <Col md={6} lg={3}>
-              <Form.Group>
-                <Form.Label>Cliente</Form.Label>
-                <Form.Control
-                  type="text"
-                  name="customerName"
-                  value={filters.customerName}
-                  onChange={handleFilterChange}
-                  placeholder="Nombre del cliente"
-                />
-              </Form.Group>
-            </Col>
-            
-            <Col md={6} lg={3}>
-              <Form.Group>
-                <Form.Label>Estado</Form.Label>
-                <Form.Select
-                  name="status"
-                  value={filters.status}
-                  onChange={handleFilterChange}
-                >
-                  <option value="">Todos los estados</option>
-                  <option value="Pendiente">Pendiente</option>
-                  <option value="Aprobado">Aprobado</option>
-                  <option value="En preparación">En preparación</option>
-                  <option value="Enviado">Enviado</option>
-                  <option value="Entregado">Entregado</option>
-                  <option value="Cancelado">Cancelado</option>
-                </Form.Select>
-              </Form.Group>
-            </Col>
-            
-            <Col md={6} lg={3}>
-              <Form.Group>
-                <Form.Label>Desde</Form.Label>
-                <Form.Control
-                  type="date"
-                  name="fromDate"
-                  value={filters.fromDate}
-                  onChange={handleFilterChange}
-                />
-              </Form.Group>
-            </Col>
-            
-            <Col md={6} lg={3}>
-              <Form.Group>
-                <Form.Label>Hasta</Form.Label>
-                <Form.Control
-                  type="date"
-                  name="toDate"
-                  value={filters.toDate}
-                  onChange={handleFilterChange}
-                />
-              </Form.Group>
-            </Col>
-            
-            <Col md={6} lg={3}>
-              <Form.Group>
-                <Form.Label>Monto mínimo</Form.Label>
-                <Form.Control
-                  type="number"
-                  name="minAmount"
-                  value={filters.minAmount}
-                  onChange={handleFilterChange}
-                  placeholder="Monto mínimo"
-                />
-              </Form.Group>
-            </Col>
-            
-            <Col md={6} lg={3}>
-              <Form.Group>
-                <Form.Label>Monto máximo</Form.Label>
-                <Form.Control
-                  type="number"
-                  name="maxAmount"
-                  value={filters.maxAmount}
-                  onChange={handleFilterChange}
-                  placeholder="Monto máximo"
-                />
-              </Form.Group>
-            </Col>
-            
-            <Col md={6} lg={3} className="d-flex align-items-end">
-              <Button 
-                variant="secondary" 
-                className="w-100"
-                onClick={handleClearFilters}
+      {error && (
+        <Alert severity="error" className="mb-4">
+          {error}
+        </Alert>
+      )}
+      
+      {/* Filtros y búsqueda */}
+      <Paper elevation={2} sx={{ p: 2, mb: 3 }}>
+        <Grid container spacing={2} alignItems="center">
+          <Grid item xs={12} sm={4} md={3}>
+            <form onSubmit={handleSearchSubmit}>
+              <TextField
+                fullWidth
+                label="Buscar pedidos"
+                variant="outlined"
+                size="small"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Nº Pedido, Cliente"
+                InputProps={{
+                  endAdornment: (
+                    <IconButton type="submit" edge="end">
+                      <Search />
+                    </IconButton>
+                  ),
+                }}
+              />
+            </form>
+          </Grid>
+          
+          <Grid item xs={12} sm={4} md={2}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Estado</InputLabel>
+              <Select
+                value={statusFilter}
+                label="Estado"
+                onChange={(e) => setStatusFilter(e.target.value)}
               >
-                Limpiar filtros
-              </Button>
-            </Col>
-          </Row>
-        </Card.Body>
-      </Card>
+                <MenuItem value="">Todos</MenuItem>
+                {orderStatuses.map((status) => (
+                  <MenuItem key={status.value} value={status.value}>
+                    {status.label}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+          
+          <Grid item xs={12} sm={4} md={2}>
+            <TextField
+              fullWidth
+              label="Desde"
+              type="date"
+              name="from"
+              value={dateFilter.from}
+              onChange={handleDateFilterChange}
+              size="small"
+              InputLabelProps={{ shrink: true }}
+            />
+          </Grid>
+          
+          <Grid item xs={12} sm={4} md={2}>
+            <TextField
+              fullWidth
+              label="Hasta"
+              type="date"
+              name="to"
+              value={dateFilter.to}
+              onChange={handleDateFilterChange}
+              size="small"
+              InputLabelProps={{ shrink: true }}
+            />
+          </Grid>
+          
+          <Grid item xs={12} sm={4} md={3} textAlign="right">
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={fetchOrders}
+            >
+              Filtrar
+            </Button>
+          </Grid>
+        </Grid>
+      </Paper>
       
-      {/* Lista de pedidos */}
-      <Card className="border-0 shadow-sm">
-        <Card.Body>
-          {isLoading ? (
-            <div className="text-center py-5">
-              <Spinner animation="border" role="status" variant="primary">
-                <span className="visually-hidden">Cargando pedidos...</span>
-              </Spinner>
-              <p className="mt-3">Cargando pedidos...</p>
-            </div>
-          ) : error ? (
-            <Alert variant="danger">{error}</Alert>
-          ) : filteredOrders.length === 0 ? (
-            <Alert variant="info">
-              No se encontraron pedidos con los filtros aplicados.
+      {/* Tabla de órdenes */}
+      <Paper elevation={2}>
+        <TableContainer>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>Nº Pedido</TableCell>
+                <TableCell>Cliente</TableCell>
+                <TableCell>Sucursal</TableCell>
+                <TableCell>Fecha</TableCell>
+                <TableCell>Monto</TableCell>
+                <TableCell>Estado</TableCell>
+                <TableCell align="center">Acciones</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {loading && page === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} align="center">
+                    Cargando pedidos...
+                  </TableCell>
+                </TableRow>
+              ) : orders.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} align="center">
+                    No se encontraron pedidos
+                  </TableCell>
+                </TableRow>
+              ) : (
+                orders.map((order) => (
+                  <TableRow key={order.id}>
+                    <TableCell>{order.order_number}</TableCell>
+                    <TableCell>
+                      {order.user ? `${order.user.first_name || ''} ${order.user.last_name || ''} (${order.user.username})` : 'Usuario no disponible'}
+                    </TableCell>
+                    <TableCell>
+                      {order.branch ? order.branch.name : 'Sucursal no disponible'}
+                    </TableCell>
+                    <TableCell>
+                      {formatDate(order.created_at)}
+                    </TableCell>
+                    <TableCell>
+                      {formatCurrency(order.final_amount)}
+                    </TableCell>
+                    <TableCell>
+                      {renderStatusChip(order.status)}
+                    </TableCell>
+                    <TableCell align="center">
+                      <IconButton 
+                        color="primary"
+                        onClick={() => handleViewOrder(order)}
+                        title="Ver detalles"
+                      >
+                        <Visibility />
+                      </IconButton>
+                      <IconButton
+                        color="secondary"
+                        onClick={() => handleOpenStatusChange(order)}
+                        title="Cambiar estado"
+                      >
+                        <LocalShipping />
+                      </IconButton>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+        
+        <TablePagination
+          rowsPerPageOptions={[5, 10, 25, 50]}
+          component="div"
+          count={-1} // No conocemos el total exacto desde la API
+          rowsPerPage={rowsPerPage}
+          page={page}
+          onPageChange={handleChangePage}
+          onRowsPerPageChange={handleChangeRowsPerPage}
+          labelDisplayedRows={({ from, to }) => `${from}-${to}`}
+        />
+      </Paper>
+      
+      {/* Modal de detalle de orden */}
+      <Dialog open={openModal} onClose={handleCloseModal} maxWidth="md" fullWidth>
+        <DialogTitle>
+          Detalle del Pedido {currentOrder?.order_number}
+        </DialogTitle>
+        <DialogContent>
+          {loading ? (
+            <Box sx={{ textAlign: 'center', py: 2 }}>
+              Cargando detalles...
+            </Box>
+          ) : !orderDetail ? (
+            <Alert severity="error">
+              No se pudo cargar la información del pedido
             </Alert>
           ) : (
-            <>
-              <div className="table-responsive">
-                <Table hover>
-                  <thead>
-                    <tr>
-                      <th>Nº Pedido</th>
-                      <th>Cliente</th>
-                      <th>Fecha</th>
-                      <th>Total</th>
-                      <th>Estado</th>
-                      <th>Método de Pago</th>
-                      <th>Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {currentOrders.map(order => (
-                      <tr key={order.id}>
-                        <td>{order.orderNumber}</td>
-                        <td>{order.customer.name}</td>
-                        <td>{order.date}</td>
-                        <td>{formatPrice(order.total)}</td>
-                        <td>
-                          <Badge bg={
-                            order.status === 'Pendiente' ? 'warning' :
-                            order.status === 'Aprobado' ? 'info' :
-                            order.status === 'En preparación' ? 'primary' :
-                            order.status === 'Enviado' ? 'secondary' :
-                            order.status === 'Entregado' ? 'success' :
-                            'danger'
-                          }>
-                            {order.status}
-                          </Badge>
-                        </td>
-                        <td>{order.paymentMethod}</td>
-                        <td>
-                          <Button
-                            variant="link"
-                            className="p-0 me-2 text-primary"
-                            onClick={() => handleViewDetails(order)}
-                          >
-                            <i className="bi bi-eye"></i>
-                          </Button>
-                          <Button
-                            variant="link"
-                            className="p-0 text-success"
-                            onClick={() => handleChangeStatus(order)}
-                          >
-                            <i className="bi bi-pencil"></i>
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </Table>
-              </div>
+            <Box>
+              <Grid container spacing={2} sx={{ mb: 2 }}>
+                <Grid item xs={12} sm={6}>
+                  <Typography variant="subtitle2">Cliente</Typography>
+                  <Typography>
+                    {orderDetail.user ? 
+                      `${orderDetail.user.first_name || ''} ${orderDetail.user.last_name || ''} (${orderDetail.user.username})` : 
+                      'Usuario no disponible'}
+                  </Typography>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <Typography variant="subtitle2">Fecha</Typography>
+                  <Typography>{formatDate(orderDetail.created_at)}</Typography>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <Typography variant="subtitle2">Sucursal</Typography>
+                  <Typography>
+                    {orderDetail.branch ? orderDetail.branch.name : 'Sucursal no disponible'}
+                  </Typography>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <Typography variant="subtitle2">Estado</Typography>
+                  <Typography>{renderStatusChip(orderDetail.status)}</Typography>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <Typography variant="subtitle2">Método de entrega</Typography>
+                  <Typography>
+                    {orderDetail.delivery_method === 'PICKUP' 
+                      ? 'Retiro en tienda' 
+                      : 'Despacho a domicilio'}
+                  </Typography>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <Typography variant="subtitle2">Dirección de entrega</Typography>
+                  <Typography>
+                    {orderDetail.delivery_address || 'No especificada'}
+                  </Typography>
+                </Grid>
+              </Grid>
               
-              {/* Información de resultados y paginación */}
-              <div className="d-flex flex-column flex-md-row justify-content-between align-items-center mt-3">
-                <div className="mb-3 mb-md-0">
-                  Mostrando {indexOfFirstOrder + 1} - {Math.min(indexOfLastOrder, filteredOrders.length)} de {filteredOrders.length} pedidos
-                </div>
-                {renderPagination()}
-              </div>
-            </>
-          )}
-        </Card.Body>
-      </Card>
-      
-      {/* Modal de detalles del pedido */}
-      <Modal 
-        show={showDetailsModal} 
-        onHide={() => setShowDetailsModal(false)}
-        size="lg"
-      >
-        <Modal.Header closeButton>
-          <Modal.Title>Detalles del Pedido</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          {selectedOrder && (
-            <>
-              <Row className="mb-4">
-                <Col md={6}>
-                  <h5>Información del Pedido</h5>
-                  <p><strong>Número:</strong> {selectedOrder.orderNumber}</p>
-                  <p><strong>Fecha:</strong> {selectedOrder.date}</p>
-                  <p><strong>Estado:</strong> 
-                    <Badge 
-                      bg={
-                        selectedOrder.status === 'Pendiente' ? 'warning' :
-                        selectedOrder.status === 'Aprobado' ? 'info' :
-                        selectedOrder.status === 'En preparación' ? 'primary' :
-                        selectedOrder.status === 'Enviado' ? 'secondary' :
-                        selectedOrder.status === 'Entregado' ? 'success' :
-                        'danger'
-                      }
-                      className="ms-2"
-                    >
-                      {selectedOrder.status}
-                    </Badge>
-                  </p>
-                  <p><strong>Método de entrega:</strong> {selectedOrder.deliveryMethod}</p>
-                  {selectedOrder.deliveryMethod === 'Retiro en tienda' ? (
-                    <p><strong>Sucursal:</strong> {selectedOrder.branch}</p>
+              <Divider sx={{ my: 2 }} />
+              
+              <Typography variant="h6" gutterBottom>
+                Productos
+              </Typography>
+              
+              <List>
+                {orderDetail.items.map((item) => (
+                  <ListItem key={item.id} divider>
+                    <ListItemText 
+                      primary={item.product_name || `Producto ID: ${item.product_id}`}
+                      secondary={`Cantidad: ${item.quantity} · Precio unitario: ${formatCurrency(item.unit_price)}`}
+                    />
+                    <Typography variant="body1">
+                      {formatCurrency(item.total_price)}
+                    </Typography>
+                  </ListItem>
+                ))}
+                
+                <ListItem>
+                  <ListItemText>Subtotal</ListItemText>
+                  <Typography variant="body1">
+                    {formatCurrency(orderDetail.total_amount)}
+                  </Typography>
+                </ListItem>
+                
+                {orderDetail.discount_amount > 0 && (
+                  <ListItem>
+                    <ListItemText>Descuento</ListItemText>
+                    <Typography variant="body1" color="error">
+                      - {formatCurrency(orderDetail.discount_amount)}
+                    </Typography>
+                  </ListItem>
+                )}
+                
+                {orderDetail.delivery_cost > 0 && (
+                  <ListItem>
+                    <ListItemText>Costo de envío</ListItemText>
+                    <Typography variant="body1">
+                      {formatCurrency(orderDetail.delivery_cost)}
+                    </Typography>
+                  </ListItem>
+                )}
+                
+                <ListItem>
+                  <ListItemText primary="Total" primaryTypographyProps={{ variant: 'h6' }} />
+                  <Typography variant="h6">
+                    {formatCurrency(orderDetail.final_amount)}
+                  </Typography>
+                </ListItem>
+              </List>
+              
+              {orderDetail.notes && (
+                <>
+                  <Divider sx={{ my: 2 }} />
+                  <Typography variant="subtitle2">Notas:</Typography>
+                  <Typography>{orderDetail.notes}</Typography>
+                </>
+              )}
+              
+              <Divider sx={{ my: 2 }} />
+              
+              <Accordion>
+                <AccordionSummary expandIcon={<ExpandMore />}>
+                  <Typography>Historial de estados</Typography>
+                </AccordionSummary>
+                <AccordionDetails>
+                  {orderDetail.status_history && orderDetail.status_history.length > 0 ? (
+                    <List dense>
+                      {orderDetail.status_history.map((history, index) => (
+                        <ListItem key={index} divider={index < orderDetail.status_history.length - 1}>
+                          <ListItemText
+                            primary={`${renderStatusChip(history.new_status)} (desde ${history.old_status})`}
+                            secondary={`${formatDate(history.date)}${history.notes ? ` - ${history.notes}` : ''}`}
+                          />
+                        </ListItem>
+                      ))}
+                    </List>
                   ) : (
-                    <p><strong>Dirección de envío:</strong> {selectedOrder.shippingAddress}</p>
+                    <Typography variant="body2">No hay historial disponible</Typography>
                   )}
-                </Col>
-                <Col md={6}>
-                  <h5>Información del Cliente</h5>
-                  <p><strong>Nombre:</strong> {selectedOrder.customer.name}</p>
-                  <p><strong>ID:</strong> {selectedOrder.customer.id}</p>
-                  <h5 className="mt-4">Información de Pago</h5>
-                  <p><strong>Método:</strong> {selectedOrder.paymentMethod}</p>
-                  <p><strong>Estado:</strong> 
-                    <Badge 
-                      bg={selectedOrder.paymentStatus === 'Pagado' ? 'success' : 'warning'}
-                      className="ms-2"
-                    >
-                      {selectedOrder.paymentStatus}
-                    </Badge>
-                  </p>
-                </Col>
-              </Row>
+                </AccordionDetails>
+              </Accordion>
               
-              <h5>Productos</h5>
-              <Table striped bordered hover responsive>
-                <thead>
-                  <tr>
-                    <th>Producto</th>
-                    <th>Cantidad</th>
-                    <th>Precio unitario</th>
-                    <th>Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {selectedOrder.items.map(item => (
-                    <tr key={item.id}>
-                      <td>{item.productName}</td>
-                      <td>{item.quantity}</td>
-                      <td>{formatPrice(item.unitPrice)}</td>
-                      <td>{formatPrice(item.totalPrice)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr>
-                    <td colSpan="3" className="text-end"><strong>Total:</strong></td>
-                    <td><strong>{formatPrice(selectedOrder.total)}</strong></td>
-                  </tr>
-                </tfoot>
-              </Table>
-            </>
+              <Accordion>
+                <AccordionSummary expandIcon={<ExpandMore />}>
+                  <Typography>Información de pago</Typography>
+                </AccordionSummary>
+                <AccordionDetails>
+                  {orderDetail.payments && orderDetail.payments.length > 0 ? (
+                    <List dense>
+                      {orderDetail.payments.map((payment, index) => (
+                        <ListItem key={index} divider={index < orderDetail.payments.length - 1}>
+                          <ListItemText
+                            primary={`${payment.payment_method} - ${payment.status}`}
+                            secondary={`Monto: ${formatCurrency(payment.amount)} · ID Transacción: ${payment.transaction_id || 'N/A'}`}
+                          />
+                        </ListItem>
+                      ))}
+                    </List>
+                  ) : (
+                    <Typography variant="body2">No hay información de pago disponible</Typography>
+                  )}
+                </AccordionDetails>
+              </Accordion>
+            </Box>
           )}
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowDetailsModal(false)}>
-            Cerrar
-          </Button>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseModal}>Cerrar</Button>
           <Button 
-            variant="primary" 
-            onClick={() => {
-              setShowDetailsModal(false);
-              handleChangeStatus(selectedOrder);
-            }}
+            variant="contained" 
+            color="primary"
+            onClick={() => handleOpenStatusChange(currentOrder)}
           >
             Cambiar Estado
           </Button>
-        </Modal.Footer>
-      </Modal>
+        </DialogActions>
+      </Dialog>
       
-      {/* Modal para cambiar estado */}
-      <Modal
-        show={showStatusModal}
-        onHide={() => setShowStatusModal(false)}
-      >
-        <Modal.Header closeButton>
-          <Modal.Title>Cambiar Estado del Pedido</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          {selectedOrder && (
-            <Form>
-              <Form.Group className="mb-3">
-                <Form.Label>Número de pedido</Form.Label>
-                <Form.Control
-                  type="text"
-                  value={selectedOrder.orderNumber}
-                  readOnly
-                />
-              </Form.Group>
-              
-              <Form.Group className="mb-3">
-                <Form.Label>Estado actual</Form.Label>
-                <Form.Control
-                  type="text"
-                  value={selectedOrder.status}
-                  readOnly
-                />
-              </Form.Group>
-              
-              <Form.Group className="mb-3">
-                <Form.Label>Nuevo estado</Form.Label>
-                <Form.Select
-                  value={newStatus}
-                  onChange={(e) => setNewStatus(e.target.value)}
-                >
-                  <option value="Pendiente">Pendiente</option>
-                  <option value="Aprobado">Aprobado</option>
-                  <option value="En preparación">En preparación</option>
-                  <option value="Enviado">Enviado</option>
-                  <option value="Entregado">Entregado</option>
-                  <option value="Cancelado">Cancelado</option>
-                </Form.Select>
-              </Form.Group>
-              
-              <Form.Group className="mb-3">
-                <Form.Label>Notas</Form.Label>
-                <Form.Control
-                  as="textarea"
-                  rows={3}
-                  value={statusNote}
-                  onChange={(e) => setStatusNote(e.target.value)}
-                  placeholder="Notas sobre el cambio de estado (opcional)"
-                />
-              </Form.Group>
-            </Form>
-          )}
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowStatusModal(false)}>
+      {/* Modal de cambio de estado */}
+      <Dialog open={statusChangeOpen} onClose={handleCloseStatusChange} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          Cambiar Estado del Pedido {currentOrder?.order_number}
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ pt: 1 }}>
+            <FormControl fullWidth sx={{ mb: 2 }}>
+              <InputLabel>Nuevo Estado</InputLabel>
+              <Select
+                value={newStatus}
+                label="Nuevo Estado"
+                onChange={(e) => setNewStatus(e.target.value)}
+              >
+                <MenuItem value="">Seleccione un estado</MenuItem>
+                {orderStatuses.map((status) => (
+                  <MenuItem key={status.value} value={status.value}>
+                    {status.label}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            
+            <TextField
+              fullWidth
+              label="Notas (opcional)"
+              value={statusNotes}
+              onChange={(e) => setStatusNotes(e.target.value)}
+              multiline
+              rows={3}
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button 
+            onClick={handleCloseStatusChange}
+            startIcon={<Close />}
+          >
             Cancelar
           </Button>
           <Button 
-            variant="primary" 
-            onClick={handleSaveStatus}
-            disabled={isUpdatingStatus}
+            variant="contained" 
+            color="primary"
+            onClick={handleUpdateStatus}
+            disabled={!newStatus || loading}
+            startIcon={<Done />}
           >
-            {isUpdatingStatus ? (
-              <>
-                <Spinner
-                  as="span"
-                  animation="border"
-                  size="sm"
-                  role="status"
-                  aria-hidden="true"
-                  className="me-2"
-                />
-                Guardando...
-              </>
-            ) : (
-              'Guardar'
-            )}
+            Actualizar Estado
           </Button>
-        </Modal.Footer>
-      </Modal>
-    </Container>
+        </DialogActions>
+      </Dialog>
+    </Box>
   );
 };
 

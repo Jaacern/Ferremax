@@ -1,184 +1,231 @@
-import React, { useState } from 'react';
-import { Form, Button, Alert, Spinner } from 'react-bootstrap';
+import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import { 
   changePassword, 
-  selectIsLoading, 
+  selectAuthLoading, 
   selectAuthError, 
-  clearError 
+  resetError,
+  selectPasswordChangeRequired
 } from '../../store/auth.slice';
+import { validatePassword } from '../../utils/validationUtils';
 
 const PasswordChange = () => {
-  const [passwordData, setPasswordData] = useState({
+  const [formData, setFormData] = useState({
     current_password: '',
     new_password: '',
     confirm_password: ''
   });
-  const [validated, setValidated] = useState(false);
-  const [passwordError, setPasswordError] = useState('');
-  const [success, setSuccess] = useState(false);
+  const [formErrors, setFormErrors] = useState({});
+  const [isSuccess, setIsSuccess] = useState(false);
   
   const dispatch = useDispatch();
-  const isLoading = useSelector(selectIsLoading);
+  const navigate = useNavigate();
+  const loading = useSelector(selectAuthLoading);
   const error = useSelector(selectAuthError);
+  const passwordChangeRequired = useSelector(selectPasswordChangeRequired);
   
+  // Limpiar errores al montar y desmontar el componente
+  useEffect(() => {
+    dispatch(resetError());
+    
+    return () => {
+      dispatch(resetError());
+    };
+  }, [dispatch]);
+  
+  // Si se completa el cambio de contraseña, redirigir después de un tiempo
+  useEffect(() => {
+    let timeout;
+    
+    if (isSuccess) {
+      timeout = setTimeout(() => {
+        navigate('/dashboard');
+      }, 3000);
+    }
+    
+    return () => {
+      clearTimeout(timeout);
+    };
+  }, [isSuccess, navigate]);
+  
+  // Manejar cambios en los campos del formulario
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setPasswordData({
-      ...passwordData,
+    setFormData({
+      ...formData,
       [name]: value
     });
     
-    // Limpiar errores al modificar campos
-    if (error) {
-      dispatch(clearError());
+    // Limpiar error específico
+    if (formErrors[name]) {
+      setFormErrors({
+        ...formErrors,
+        [name]: ''
+      });
+    }
+  };
+  
+  // Validar formulario antes de enviar
+  const validateForm = () => {
+    const errors = {};
+    const { current_password, new_password, confirm_password } = formData;
+    
+    // Validar contraseña actual
+    if (!current_password) {
+      errors.current_password = 'La contraseña actual es requerida';
     }
     
-    // Validación de coincidencia de contraseñas
-    if (name === 'new_password' || name === 'confirm_password') {
-      if (name === 'confirm_password' && value !== passwordData.new_password) {
-        setPasswordError('Las contraseñas no coinciden');
-      } else if (name === 'new_password' && passwordData.confirm_password && value !== passwordData.confirm_password) {
-        setPasswordError('Las contraseñas no coinciden');
-      } else {
-        setPasswordError('');
+    // Validar nueva contraseña
+    if (!new_password) {
+      errors.new_password = 'La nueva contraseña es requerida';
+    } else {
+      const passwordValidation = validatePassword(new_password);
+      if (!passwordValidation.success) {
+        errors.new_password = passwordValidation.message;
       }
     }
-  };
-  
-  const validatePassword = (password) => {
-    // Validación de requisitos mínimos de contraseña
-    const hasMinLength = password.length >= 8;
-    const hasUpperCase = /[A-Z]/.test(password);
-    const hasLowerCase = /[a-z]/.test(password);
-    const hasNumber = /\d/.test(password);
-    const hasSpecialChar = /[!@#$%^&*]/.test(password);
     
-    return hasMinLength && hasUpperCase && hasLowerCase && hasNumber && hasSpecialChar;
+    // Validar confirmación de nueva contraseña
+    if (!confirm_password) {
+      errors.confirm_password = 'Confirme su nueva contraseña';
+    } else if (new_password !== confirm_password) {
+      errors.confirm_password = 'Las contraseñas no coinciden';
+    }
+    
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
   };
   
-  const handleSubmit = async (e) => {
+  // Manejar envío del formulario
+  const handleSubmit = (e) => {
     e.preventDefault();
-    const form = e.currentTarget;
     
-    // Validación del formulario
-    if (form.checkValidity() === false || passwordData.new_password !== passwordData.confirm_password) {
-      e.stopPropagation();
-      setValidated(true);
-      return;
-    }
-    
-    // Validar requisitos de contraseña
-    if (!validatePassword(passwordData.new_password)) {
-      setPasswordError('La contraseña debe tener al menos 8 caracteres, incluir mayúsculas, minúsculas, números y caracteres especiales.');
-      return;
-    }
-    
-    // Preparar datos para el envío
-    const { confirm_password, ...changeData } = passwordData;
-    
-    try {
-      await dispatch(changePassword(changeData)).unwrap();
-      setSuccess(true);
-      // Resetear formulario
-      setPasswordData({
-        current_password: '',
-        new_password: '',
-        confirm_password: ''
-      });
-      setValidated(false);
-    } catch (err) {
-      // El error ya se maneja en el slice
+    if (validateForm()) {
+      const { current_password, new_password } = formData;
+      
+      dispatch(changePassword({ current_password, new_password }))
+        .unwrap()
+        .then(() => {
+          setIsSuccess(true);
+        })
+        .catch(() => {
+          // El error ya está en el estado de Redux
+        });
     }
   };
   
   return (
-    <Form noValidate validated={validated} onSubmit={handleSubmit}>
-      {error && (
-        <Alert variant="danger" className="mb-3">
-          {error}
-        </Alert>
-      )}
-      
-      {success && (
-        <Alert variant="success" className="mb-3">
-          Contraseña actualizada correctamente.
-        </Alert>
-      )}
-      
-      <Form.Group className="mb-3" controlId="formCurrentPassword">
-        <Form.Label>Contraseña actual</Form.Label>
-        <Form.Control
-          type="password"
-          name="current_password"
-          value={passwordData.current_password}
-          onChange={handleChange}
-          placeholder="Ingrese su contraseña actual"
-          required
-        />
-        <Form.Control.Feedback type="invalid">
-          La contraseña actual es requerida.
-        </Form.Control.Feedback>
-      </Form.Group>
-      
-      <Form.Group className="mb-3" controlId="formNewPassword">
-        <Form.Label>Nueva contraseña</Form.Label>
-        <Form.Control
-          type="password"
-          name="new_password"
-          value={passwordData.new_password}
-          onChange={handleChange}
-          placeholder="Ingrese su nueva contraseña"
-          required
-          isInvalid={!!passwordError}
-        />
-        <Form.Control.Feedback type="invalid">
-          {passwordError || 'La nueva contraseña es requerida.'}
-        </Form.Control.Feedback>
-        <Form.Text className="text-muted">
-          La contraseña debe tener al menos 8 caracteres, incluir mayúsculas, minúsculas, números y caracteres especiales.
-        </Form.Text>
-      </Form.Group>
-      
-      <Form.Group className="mb-3" controlId="formConfirmPassword">
-        <Form.Label>Confirmar nueva contraseña</Form.Label>
-        <Form.Control
-          type="password"
-          name="confirm_password"
-          value={passwordData.confirm_password}
-          onChange={handleChange}
-          placeholder="Confirme su nueva contraseña"
-          required
-          isInvalid={!!passwordError}
-        />
-        <Form.Control.Feedback type="invalid">
-          {passwordError || 'Confirme su nueva contraseña.'}
-        </Form.Control.Feedback>
-      </Form.Group>
-      
-      <Button 
-        variant="primary" 
-        type="submit" 
-        className="w-100"
-        disabled={isLoading}
-      >
-        {isLoading ? (
-          <>
-            <Spinner
-              as="span"
-              animation="border"
-              size="sm"
-              role="status"
-              aria-hidden="true"
-              className="me-2"
-            />
-            Actualizando...
-          </>
-        ) : (
-          'Cambiar Contraseña'
+    <div className="card shadow-sm">
+      <div className="card-body p-4">
+        <h1 className="text-center mb-4">Cambiar Contraseña</h1>
+        
+        {passwordChangeRequired && (
+          <div className="alert alert-warning mb-4">
+            <i className="bi bi-exclamation-triangle-fill me-2"></i>
+            Es necesario cambiar su contraseña por razones de seguridad.
+          </div>
         )}
-      </Button>
-    </Form>
+        
+        {isSuccess ? (
+          <div className="alert alert-success" role="alert">
+            <h4 className="alert-heading">¡Contraseña actualizada!</h4>
+            <p>Su contraseña ha sido cambiada exitosamente. Será redirigido automáticamente en unos segundos.</p>
+            <hr />
+            <div className="d-flex justify-content-center">
+              <div className="spinner-border text-success" role="status">
+                <span className="visually-hidden">Redirigiendo...</span>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <>
+            {error && (
+              <div className="alert alert-danger" role="alert">
+                {error}
+              </div>
+            )}
+            
+            <form onSubmit={handleSubmit}>
+              <div className="mb-3">
+                <label htmlFor="current_password" className="form-label">
+                  Contraseña Actual
+                </label>
+                <input
+                  type="password"
+                  className={`form-control ${formErrors.current_password ? 'is-invalid' : ''}`}
+                  id="current_password"
+                  name="current_password"
+                  value={formData.current_password}
+                  onChange={handleChange}
+                  disabled={loading}
+                  required
+                />
+                {formErrors.current_password && (
+                  <div className="invalid-feedback">{formErrors.current_password}</div>
+                )}
+              </div>
+              
+              <div className="mb-3">
+                <label htmlFor="new_password" className="form-label">
+                  Nueva Contraseña
+                </label>
+                <input
+                  type="password"
+                  className={`form-control ${formErrors.new_password ? 'is-invalid' : ''}`}
+                  id="new_password"
+                  name="new_password"
+                  value={formData.new_password}
+                  onChange={handleChange}
+                  disabled={loading}
+                  required
+                />
+                {formErrors.new_password && (
+                  <div className="invalid-feedback">{formErrors.new_password}</div>
+                )}
+                <div className="form-text">
+                  La contraseña debe tener al menos 8 caracteres, incluir mayúsculas, minúsculas, números y caracteres especiales.
+                </div>
+              </div>
+              
+              <div className="mb-4">
+                <label htmlFor="confirm_password" className="form-label">
+                  Confirmar Nueva Contraseña
+                </label>
+                <input
+                  type="password"
+                  className={`form-control ${formErrors.confirm_password ? 'is-invalid' : ''}`}
+                  id="confirm_password"
+                  name="confirm_password"
+                  value={formData.confirm_password}
+                  onChange={handleChange}
+                  disabled={loading}
+                  required
+                />
+                {formErrors.confirm_password && (
+                  <div className="invalid-feedback">{formErrors.confirm_password}</div>
+                )}
+              </div>
+              
+              <div className="d-grid">
+                <button
+                  type="submit"
+                  className="btn btn-primary py-2"
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <>
+                      <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                      Actualizando...
+                    </>
+                  ) : 'Cambiar Contraseña'}
+                </button>
+              </div>
+            </form>
+          </>
+        )}
+      </div>
+    </div>
   );
 };
 

@@ -1,242 +1,251 @@
 import React, { useState, useEffect } from 'react';
-import { Form, Button, Spinner, Alert, Row, Col, Card } from 'react-bootstrap';
 import { useDispatch, useSelector } from 'react-redux';
-import { 
-  transferStock, 
-  fetchStockById, 
-  fetchBranches,
-  selectCurrentStock, 
-  selectBranches,
-  selectIsLoading, 
-  selectError 
-} from '../../store/stock.slice';
+import { transferStock, selectStockLoading } from '../../store/stock.slice';
 
-const StockTransferForm = ({ stockId, onSuccess, onCancel }) => {
+/**
+ * Componente para transferir stock entre sucursales.
+ * 
+ * @param {Object} props - Propiedades del componente
+ * @param {Object} props.stock - Datos del stock origen
+ * @param {Array} props.branches - Lista de sucursales disponibles
+ * @param {Function} props.onComplete - Función a llamar cuando se completa la transferencia
+ * @param {Function} props.onCancel - Función para cancelar la transferencia
+ * @returns {React.ReactNode} - Formulario de transferencia de stock
+ */
+const StockTransferForm = ({ stock, branches = [], onComplete, onCancel }) => {
   const dispatch = useDispatch();
-  const currentStock = useSelector(selectCurrentStock);
-  const branches = useSelector(selectBranches);
-  const isLoading = useSelector(selectIsLoading);
-  const error = useSelector(selectError);
+  const loading = useSelector(selectStockLoading);
   
-  const [formData, setFormData] = useState({
-    quantity: '',
-    target_branch_id: '',
-    notes: ''
-  });
+  const [targetBranchId, setTargetBranchId] = useState('');
+  const [quantity, setQuantity] = useState(1);
+  const [errors, setErrors] = useState({});
   
-  const [validated, setValidated] = useState(false);
-  
-  // Cargar datos actuales del stock y las sucursales
+  // Actualizar estado local cuando cambia el stock o las sucursales
   useEffect(() => {
-    if (stockId) {
-      dispatch(fetchStockById(stockId));
-      dispatch(fetchBranches());
-    }
-  }, [dispatch, stockId]);
-  
-  // Actualizar cuando se carga el stock
-  useEffect(() => {
-    if (currentStock) {
-      setFormData(prevState => ({
-        ...prevState,
-        quantity: Math.min(prevState.quantity || 1, currentStock.quantity || 0)
-      }));
-    }
-  }, [currentStock]);
-  
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    
-    // Validación para campos numéricos
-    if (name === 'quantity' && value !== '') {
-      const numValue = parseInt(value);
-      if (isNaN(numValue) || numValue < 0 || (currentStock && numValue > currentStock.quantity)) {
-        return;
+    if (stock && branches.length > 0) {
+      // Preseleccionar la primera sucursal que no sea la actual
+      const otherBranches = branches.filter(branch => branch.id !== stock.branch_id);
+      if (otherBranches.length > 0) {
+        setTargetBranchId(otherBranches[0].id.toString());
       }
+      
+      // Inicializar cantidad a 1 o mitad del stock disponible (lo que sea menor)
+      const defaultQuantity = Math.min(1, Math.floor(stock.quantity / 2));
+      setQuantity(defaultQuantity > 0 ? defaultQuantity : 1);
     }
-    
-    setFormData({
-      ...formData,
-      [name]: value
-    });
-  };
+  }, [stock, branches]);
   
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    const form = e.currentTarget;
-    
-    if (form.checkValidity() === false) {
-      e.stopPropagation();
-      setValidated(true);
-      return;
-    }
-    
-    // Verificar que no se esté transfiriendo a la misma sucursal
-    if (currentStock && currentStock.branch_id.toString() === formData.target_branch_id) {
-      alert('No se puede transferir a la misma sucursal');
-      return;
-    }
-    
-    // Verificar que la cantidad sea válida
-    if (!formData.quantity || formData.quantity <= 0) {
-      alert('La cantidad debe ser mayor a cero');
-      return;
-    }
-    
-    // Preparar datos para la transferencia
-    const transferData = {
-      product_id: currentStock.product_id,
-      source_branch_id: currentStock.branch_id,
-      target_branch_id: parseInt(formData.target_branch_id),
-      quantity: parseInt(formData.quantity),
-      notes: formData.notes
-    };
-    
-    dispatch(transferStock(transferData)).then((result) => {
-      if (!result.error) {
-        if (onSuccess) onSuccess();
-      }
-    });
-  };
-  
-  // Filtrar sucursales para que no incluya la sucursal actual
+  // Filtrar sucursales disponibles (excluir la sucursal origen)
   const availableBranches = branches.filter(branch => 
-    !currentStock || branch.id !== currentStock.branch_id
+    branch.id !== (stock ? stock.branch_id : null)
   );
   
+  // Manejar cambio en la sucursal destino
+  const handleBranchChange = (e) => {
+    setTargetBranchId(e.target.value);
+    
+    // Limpiar error si existe
+    if (errors.targetBranchId) {
+      setErrors({ ...errors, targetBranchId: null });
+    }
+  };
+  
+  // Manejar cambio en la cantidad
+  const handleQuantityChange = (e) => {
+    const value = parseInt(e.target.value, 10);
+    setQuantity(isNaN(value) ? 0 : value);
+    
+    // Limpiar error si existe
+    if (errors.quantity) {
+      setErrors({ ...errors, quantity: null });
+    }
+  };
+  
+  // Validar formulario
+  const validateForm = () => {
+    const newErrors = {};
+    
+    if (!targetBranchId) {
+      newErrors.targetBranchId = 'Debe seleccionar una sucursal destino';
+    }
+    
+    if (!quantity || quantity <= 0) {
+      newErrors.quantity = 'La cantidad debe ser mayor a 0';
+    } else if (stock && quantity > stock.quantity) {
+      newErrors.quantity = `La cantidad no puede ser mayor al stock disponible (${stock.quantity})`;
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+  
+  // Manejar envío del formulario
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!stock) return;
+    
+    if (validateForm()) {
+      try {
+        await dispatch(transferStock({
+          productId: stock.product_id,
+          sourceBranchId: stock.branch_id,
+          targetBranchId: parseInt(targetBranchId, 10),
+          quantity
+        })).unwrap();
+        
+        if (onComplete) {
+          onComplete();
+        }
+      } catch (error) {
+        console.error('Error al transferir stock:', error);
+        // Mostrar mensaje de error general
+        setErrors({ general: error.message || 'Error al transferir stock' });
+      }
+    }
+  };
+  
+  // Si no hay stock o sucursales, no mostrar nada
+  if (!stock || availableBranches.length === 0) {
+    return (
+      <div className="card">
+        <div className="card-header bg-light">
+          <h5 className="mb-0">Transferir Stock</h5>
+        </div>
+        <div className="card-body">
+          <div className="alert alert-warning">
+            <i className="bi bi-exclamation-triangle me-2"></i>
+            No hay sucursales disponibles para transferir stock.
+          </div>
+          <div className="d-flex justify-content-end">
+            <button className="btn btn-secondary" onClick={onCancel}>
+              Cancelar
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
   return (
-    <Form noValidate validated={validated} onSubmit={handleSubmit}>
-      {error && (
-        <Alert variant="danger" className="mb-3">
-          {error}
-        </Alert>
-      )}
-      
-      {currentStock && (
-        <Card className="mb-4">
-          <Card.Body>
-            <h5>Información del producto</h5>
-            <Row>
-              <Col sm={6}>
-                <p className="mb-1">
-                  <strong>Producto:</strong> {currentStock.product_name}
-                </p>
-                <p className="mb-1">
-                  <strong>SKU:</strong> {currentStock.product_sku}
-                </p>
-                {currentStock.product_brand && (
-                  <p className="mb-1">
-                    <strong>Marca:</strong> {currentStock.product_brand}
-                  </p>
-                )}
-              </Col>
-              <Col sm={6}>
-                <p className="mb-1">
-                  <strong>Sucursal actual:</strong> {currentStock.branch_name}
-                </p>
-                <p className="mb-1">
-                  <strong>Stock disponible:</strong> {currentStock.quantity || 0} unidades
-                </p>
-              </Col>
-            </Row>
-          </Card.Body>
-        </Card>
-      )}
-      
-      <Form.Group className="mb-3" controlId="formTargetBranch">
-        <Form.Label>Sucursal destino</Form.Label>
-        <Form.Select
-          name="target_branch_id"
-          value={formData.target_branch_id}
-          onChange={handleChange}
-          required
-          disabled={availableBranches.length === 0}
-        >
-          <option value="">Seleccione sucursal destino</option>
-          {availableBranches.map(branch => (
-            <option key={branch.id} value={branch.id}>
-              {branch.name}
-            </option>
-          ))}
-        </Form.Select>
-        <Form.Control.Feedback type="invalid">
-          Seleccione una sucursal destino.
-        </Form.Control.Feedback>
-        {availableBranches.length === 0 && (
-          <Form.Text className="text-danger">
-            No hay otras sucursales disponibles para transferir.
-          </Form.Text>
-        )}
-      </Form.Group>
-      
-      <Form.Group className="mb-3" controlId="formQuantity">
-        <Form.Label>Cantidad a transferir</Form.Label>
-        <Form.Control
-          type="number"
-          name="quantity"
-          value={formData.quantity}
-          onChange={handleChange}
-          min="1"
-          max={currentStock ? currentStock.quantity : 99999}
-          required
-        />
-        <Form.Control.Feedback type="invalid">
-          Ingrese una cantidad válida.
-        </Form.Control.Feedback>
-        {currentStock && (
-          <Form.Text className="text-muted">
-            Máximo disponible: {currentStock.quantity} unidades
-          </Form.Text>
-        )}
-      </Form.Group>
-      
-      <Form.Group className="mb-3" controlId="formNotes">
-        <Form.Label>Notas de transferencia</Form.Label>
-        <Form.Control
-          as="textarea"
-          rows={2}
-          name="notes"
-          value={formData.notes}
-          onChange={handleChange}
-          placeholder="Motivo de la transferencia o instrucciones adicionales"
-        />
-      </Form.Group>
-      
-      <div className="d-flex justify-content-end">
-        {onCancel && (
-          <Button 
-            variant="outline-secondary" 
-            onClick={onCancel}
-            className="me-2"
-            disabled={isLoading}
-          >
-            Cancelar
-          </Button>
+    <div className="card">
+      <div className="card-header bg-light">
+        <h5 className="mb-0">Transferir Stock</h5>
+      </div>
+      <div className="card-body">
+        {errors.general && (
+          <div className="alert alert-danger mb-3">
+            {errors.general}
+          </div>
         )}
         
-        <Button 
-          variant="primary" 
-          type="submit"
-          disabled={isLoading || !currentStock || currentStock.quantity < 1 || availableBranches.length === 0}
-        >
-          {isLoading ? (
-            <>
-              <Spinner
-                as="span"
-                animation="border"
-                size="sm"
-                role="status"
-                aria-hidden="true"
-                className="me-2"
+        <form onSubmit={handleSubmit}>
+          <div className="mb-3">
+            <label htmlFor="productName" className="form-label">Producto</label>
+            <input
+              type="text"
+              className="form-control"
+              id="productName"
+              value={stock.product_name || ''}
+              disabled
+            />
+          </div>
+          
+          <div className="row mb-3">
+            <div className="col-md-6">
+              <label htmlFor="sourceBranch" className="form-label">Sucursal Origen</label>
+              <input
+                type="text"
+                className="form-control"
+                id="sourceBranch"
+                value={stock.branch_name || ''}
+                disabled
               />
-              Procesando...
-            </>
-          ) : (
-            'Transferir stock'
-          )}
-        </Button>
+              <div className="form-text">
+                Stock disponible: <strong>{stock.quantity}</strong> unidades
+              </div>
+            </div>
+            
+            <div className="col-md-6">
+              <label htmlFor="targetBranch" className="form-label">Sucursal Destino</label>
+              <select
+                id="targetBranch"
+                className={`form-select ${errors.targetBranchId ? 'is-invalid' : ''}`}
+                value={targetBranchId}
+                onChange={handleBranchChange}
+              >
+                <option value="">Seleccione sucursal destino</option>
+                {availableBranches.map(branch => (
+                  <option key={branch.id} value={branch.id}>
+                    {branch.name}
+                  </option>
+                ))}
+              </select>
+              {errors.targetBranchId && (
+                <div className="invalid-feedback">{errors.targetBranchId}</div>
+              )}
+            </div>
+          </div>
+          
+          <div className="mb-4">
+            <label htmlFor="quantity" className="form-label">Cantidad a Transferir</label>
+            <input
+              type="number"
+              className={`form-control ${errors.quantity ? 'is-invalid' : ''}`}
+              id="quantity"
+              value={quantity}
+              onChange={handleQuantityChange}
+              min="1"
+              max={stock.quantity}
+            />
+            {errors.quantity && (
+              <div className="invalid-feedback">{errors.quantity}</div>
+            )}
+          </div>
+          
+          <div className="alert alert-info mb-4">
+            <div className="d-flex">
+              <div className="me-3">
+                <i className="bi bi-info-circle fs-4"></i>
+              </div>
+              <div>
+                <h6 className="mb-2">Información de Transferencia</h6>
+                <p className="mb-0">
+                  Se transferirán <strong>{quantity}</strong> unidades de <strong>{stock.product_name}</strong> desde 
+                  la sucursal <strong>{stock.branch_name}</strong> hacia 
+                  la sucursal <strong>{
+                    availableBranches.find(b => b.id.toString() === targetBranchId)?.name || 'seleccionada'
+                  }</strong>.
+                </p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="d-flex justify-content-end gap-2">
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={onCancel}
+              disabled={loading}
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              className="btn btn-primary"
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                  Transfiriendo...
+                </>
+              ) : 'Confirmar Transferencia'}
+            </button>
+          </div>
+        </form>
       </div>
-    </Form>
+    </div>
   );
 };
 

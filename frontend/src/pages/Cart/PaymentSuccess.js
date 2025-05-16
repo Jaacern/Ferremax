@@ -1,84 +1,208 @@
 import React, { useEffect } from 'react';
-import { Container, Row, Col, Card, Button, Alert } from 'react-bootstrap';
-import { Link, useLocation } from 'react-router-dom';
-import { useSelector } from 'react-redux';
-import { selectCurrentUser } from '../../store/auth.slice';
+import { useLocation, useNavigate, Link } from 'react-router-dom';
+import { 
+  Box, Typography, Paper, Grid, Button, 
+  Alert, List, ListItem, ListItemText, Divider
+} from '@mui/material';
+import { CheckCircle, Assignment, Receipt } from '@mui/icons-material';
 
 const PaymentSuccess = () => {
   const location = useLocation();
-  const currentUser = useSelector(selectCurrentUser);
+  const navigate = useNavigate();
   
-  // Extraer información de la URL si existe
-  const queryParams = new URLSearchParams(location.search);
-  const orderNumber = queryParams.get('order') || 'ORD-20250514-XYZ123'; // Valor de ejemplo
+  // Datos recibidos del proceso de pago
+  const { payment, payment_details, order } = location.state || {};
   
-  // Efecto para simular un scroll hacia arriba cuando se carga la página
   useEffect(() => {
-    window.scrollTo(0, 0);
-  }, []);
-  
+    // Si no hay datos de pago, redirigir al carrito
+    if (!payment && !order) {
+      navigate('/cart');
+    }
+  }, [payment, order, navigate]);
+
+  // Formatear montos en pesos chilenos
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('es-CL', {
+      style: 'currency',
+      currency: 'CLP'
+    }).format(amount);
+  };
+
+  // Formatear fecha
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    
+    const date = new Date(dateString);
+    return new Intl.DateTimeFormat('es-CL', {
+      dateStyle: 'medium',
+      timeStyle: 'short'
+    }).format(date);
+  };
+
+  if (!payment && !order) {
+    return null; // Se redirigirá en el useEffect
+  }
+
   return (
-    <Container className="py-5">
-      <Row className="justify-content-center">
-        <Col md={8} lg={6}>
-          <Card className="border-success shadow-sm">
-            <Card.Body className="text-center p-5">
-              <div className="mb-4">
-                <span className="bg-success text-white rounded-circle d-inline-flex align-items-center justify-content-center" style={{ width: '80px', height: '80px' }}>
-                  <i className="bi bi-check-lg" style={{ fontSize: '3rem' }}></i>
-                </span>
-              </div>
+    <Box p={3}>
+      <Paper elevation={2} sx={{ p: 3, maxWidth: 800, mx: 'auto', textAlign: 'center' }}>
+        <CheckCircle color="success" sx={{ fontSize: 64, mb: 2 }} />
+        
+        <Typography variant="h4" gutterBottom>
+          ¡Gracias por tu compra!
+        </Typography>
+        
+        <Typography variant="subtitle1" paragraph>
+          {payment?.payment_method === 'BANK_TRANSFER' 
+            ? 'Tu pedido ha sido recibido y se confirmará cuando se verifique tu transferencia.' 
+            : 'Tu pago ha sido procesado exitosamente y tu pedido está en proceso.'}
+        </Typography>
+        
+        <Divider sx={{ my: 3 }} />
+        
+        <Grid container spacing={3} sx={{ textAlign: 'left', mb: 3 }}>
+          <Grid item xs={12} sm={6}>
+            <Typography variant="h6" gutterBottom>
+              <Assignment fontSize="small" sx={{ mr: 1, verticalAlign: 'middle' }} />
+              Detalles del Pedido
+            </Typography>
+            
+            <List dense>
+              <ListItem>
+                <ListItemText 
+                  primary="Número de Pedido" 
+                  secondary={order?.order_number || payment?.webpay_buyorder || '#'}
+                />
+              </ListItem>
+              <ListItem>
+                <ListItemText 
+                  primary="Fecha" 
+                  secondary={formatDate(order?.created_at || payment?.created_at)}
+                />
+              </ListItem>
+              <ListItem>
+                <ListItemText 
+                  primary="Estado del Pedido" 
+                  secondary={order?.status || 'Pendiente'}
+                />
+              </ListItem>
+              <ListItem>
+                <ListItemText 
+                  primary="Total" 
+                  secondary={formatCurrency(order?.final_amount || payment?.amount)}
+                />
+              </ListItem>
+            </List>
+          </Grid>
+          
+          <Grid item xs={12} sm={6}>
+            <Typography variant="h6" gutterBottom>
+              <Receipt fontSize="small" sx={{ mr: 1, verticalAlign: 'middle' }} />
+              Detalles del Pago
+            </Typography>
+            
+            <List dense>
+              <ListItem>
+                <ListItemText 
+                  primary="Método de Pago" 
+                  secondary={payment?.payment_method === 'CREDIT_CARD' 
+                    ? 'Tarjeta de Crédito' 
+                    : payment?.payment_method === 'DEBIT_CARD' 
+                      ? 'Tarjeta de Débito' 
+                      : 'Transferencia Bancaria'}
+                />
+              </ListItem>
               
-              <h1 className="mb-3 text-success">¡Pago exitoso!</h1>
+              {payment?.transaction_id && (
+                <ListItem>
+                  <ListItemText 
+                    primary="ID de Transacción" 
+                    secondary={payment.transaction_id}
+                  />
+                </ListItem>
+              )}
               
-              <p className="mb-4 lead">
-                Tu pedido ha sido procesado correctamente. 
-                Pronto recibirás un correo electrónico con los detalles de tu compra.
-              </p>
-              
-              <Alert variant="info" className="d-inline-block mb-4">
-                <strong>Número de orden:</strong> {orderNumber}
-              </Alert>
-              
-              <div className="mb-4">
-                <p>
-                  Estimado/a <strong>{currentUser?.first_name || 'Cliente'}</strong>, 
-                  muchas gracias por tu compra.
-                </p>
-                
-                {location.state?.deliveryMethod === 'PICKUP' ? (
-                  <p>
-                    Podrás retirar tu pedido en la sucursal seleccionada una vez que recibas 
-                    la confirmación por correo electrónico.
-                  </p>
-                ) : (
-                  <p>
-                    Tu pedido será preparado y enviado a la dirección proporcionada. 
-                    Podrás seguir el estado de tu envío en la sección "Mis Pedidos".
-                  </p>
-                )}
-              </div>
-              
-              <div className="d-grid gap-2">
-                {currentUser ? (
-                  <Button as={Link} to="/orders" variant="primary" size="lg">
-                    Ver mis pedidos
-                  </Button>
-                ) : (
-                  <Button as={Link} to="/login" variant="primary" size="lg">
-                    Iniciar sesión
-                  </Button>
-                )}
-                
-                <Button as={Link} to="/products" variant="outline-secondary">
-                  Continuar comprando
-                </Button>
-              </div>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
-    </Container>
+              {payment?.payment_method === 'BANK_TRANSFER' && payment_details?.account_info && (
+                <>
+                  <ListItem>
+                    <ListItemText 
+                      primary="Banco" 
+                      secondary={payment_details.account_info.bank}
+                    />
+                  </ListItem>
+                  <ListItem>
+                    <ListItemText 
+                      primary="Número de Cuenta" 
+                      secondary={`${payment_details.account_info.account_type} ${payment_details.account_info.account_number}`}
+                    />
+                  </ListItem>
+                  <ListItem>
+                    <ListItemText 
+                      primary="RUT" 
+                      secondary={payment_details.account_info.rut}
+                    />
+                  </ListItem>
+                  <ListItem>
+                    <ListItemText 
+                      primary="Correo para Comprobante" 
+                      secondary={payment_details.account_info.email}
+                    />
+                  </ListItem>
+                  <ListItem>
+                    <ListItemText 
+                      primary="Referencia" 
+                      secondary={payment_details.account_info.reference}
+                      primaryTypographyProps={{ fontWeight: 'bold' }}
+                      secondaryTypographyProps={{ fontWeight: 'bold' }}
+                    />
+                  </ListItem>
+                </>
+              )}
+            </List>
+          </Grid>
+        </Grid>
+        
+        {payment?.payment_method === 'BANK_TRANSFER' && (
+          <Alert severity="info" sx={{ mb: 3, textAlign: 'left' }}>
+            <Typography variant="subtitle2" gutterBottom>
+              Instrucciones para la transferencia:
+            </Typography>
+            <Typography variant="body2">
+              1. Realiza una transferencia bancaria por el monto total de {formatCurrency(payment.amount)}.
+            </Typography>
+            <Typography variant="body2">
+              2. Usa como referencia el código: <strong>{payment_details?.account_info.reference}</strong>
+            </Typography>
+            <Typography variant="body2">
+              3. Envía el comprobante al correo: <strong>{payment_details?.account_info.email}</strong>
+            </Typography>
+            <Typography variant="body2">
+              4. Tu pedido será procesado una vez que se verifique el pago.
+            </Typography>
+          </Alert>
+        )}
+        
+        <Box sx={{ mt: 3 }}>
+          <Button 
+            variant="contained" 
+            color="primary"
+            component={Link}
+            to="/user/orders"
+            sx={{ mr: 2 }}
+          >
+            Ver mis pedidos
+          </Button>
+          
+          <Button 
+            variant="outlined"
+            component={Link}
+            to="/catalog"
+          >
+            Seguir comprando
+          </Button>
+        </Box>
+      </Paper>
+    </Box>
   );
 };
 

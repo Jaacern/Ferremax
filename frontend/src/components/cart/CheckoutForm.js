@@ -1,356 +1,326 @@
-import React, { useState } from 'react';
-import { Form, Button, Row, Col, Card, Spinner } from 'react-bootstrap';
-import { useSelector } from 'react-redux';
-import { selectCurrentUser } from '../../store/auth.slice';
+import React, { useState, useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
+import {
+  selectCartItems,
+  selectCartTotal,
+  selectSelectedBranchId,
+  selectDeliveryMethod,
+  selectDeliveryAddress,
+  selectCartNotes,
+  setDeliveryMethod,
+  setDeliveryAddress,
+  setNotes,
+  createOrder,
+  selectCartLoading,
+  selectCartError,
+  selectLastOrder
+} from '../../store/cart.slice';
+import { selectUser } from '../../store/auth.slice';
+import { DELIVERY_METHODS } from '../../config';
+import { formatPrice } from '../../utils/formatUtils';
 
-const CheckoutForm = ({ onSubmit, isLoading }) => {
-  const currentUser = useSelector(selectCurrentUser);
+/**
+ * Formulario de checkout para finalizar la compra.
+ */
+const CheckoutForm = () => {
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
   
-  // Estado para el formulario
-  const [formData, setFormData] = useState({
-    firstName: currentUser?.first_name || '',
-    lastName: currentUser?.last_name || '',
-    email: currentUser?.email || '',
-    phone: currentUser?.phone || '',
-    address: currentUser?.address || '',
-    city: '',
-    region: '',
-    zipCode: '',
-    deliveryMethod: 'PICKUP',  // PICKUP o DELIVERY
-    branchId: '',  // Para retiro en tienda
-    paymentMethod: 'CREDIT_CARD',  // CREDIT_CARD, DEBIT_CARD, BANK_TRANSFER
-    notes: ''
-  });
+  // Seleccionar datos del estado
+  const cartItems = useSelector(selectCartItems);
+  const cartTotal = useSelector(selectCartTotal);
+  const selectedBranchId = useSelector(selectSelectedBranchId);
+  const deliveryMethod = useSelector(selectDeliveryMethod);
+  const deliveryAddress = useSelector(selectDeliveryAddress);
+  const notes = useSelector(selectCartNotes);
+  const loading = useSelector(selectCartLoading);
+  const error = useSelector(selectCartError);
+  const lastOrder = useSelector(selectLastOrder);
+  const user = useSelector(selectUser);
   
-  // Estado para validación
-  const [validated, setValidated] = useState(false);
+  // Estado local para validación
+  const [errors, setErrors] = useState({});
   
-  // Manejar cambios en el formulario
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({
-      ...formData,
-      [name]: value
-    });
+  // Calcular envío según método seleccionado
+  const deliveryCost = deliveryMethod === DELIVERY_METHODS.DELIVERY ? 5000 : 0;
+  
+  // Total final
+  const totalWithDelivery = cartTotal + deliveryCost;
+  
+  // Si ya se creó una orden, redirigir al pago
+  useEffect(() => {
+    if (lastOrder) {
+      navigate('/payment/success', { state: { orderId: lastOrder.id } });
+    }
+  }, [lastOrder, navigate]);
+  
+  // Si el carrito está vacío, redirigir
+  useEffect(() => {
+    if (cartItems.length === 0 && !loading) {
+      navigate('/cart');
+    }
+  }, [cartItems, loading, navigate]);
+  
+  // Manejar cambio de método de entrega
+  const handleDeliveryMethodChange = (e) => {
+    dispatch(setDeliveryMethod(e.target.value));
+    
+    // Limpiar error si existe
+    if (errors.deliveryMethod) {
+      setErrors({ ...errors, deliveryMethod: null });
+    }
+  };
+  
+  // Manejar cambio de dirección
+  const handleAddressChange = (e) => {
+    dispatch(setDeliveryAddress(e.target.value));
+    
+    // Limpiar error si existe
+    if (errors.deliveryAddress) {
+      setErrors({ ...errors, deliveryAddress: null });
+    }
+  };
+  
+  // Manejar cambio de notas
+  const handleNotesChange = (e) => {
+    dispatch(setNotes(e.target.value));
+  };
+  
+  // Validar formulario
+  const validateForm = () => {
+    const newErrors = {};
+    
+    // Validar sucursal seleccionada
+    if (!selectedBranchId) {
+      newErrors.branch = 'Debe seleccionar una sucursal';
+    }
+    
+    // Validar método de entrega
+    if (!deliveryMethod) {
+      newErrors.deliveryMethod = 'Debe seleccionar un método de entrega';
+    }
+    
+    // Validar dirección si es envío a domicilio
+    if (deliveryMethod === DELIVERY_METHODS.DELIVERY && !deliveryAddress.trim()) {
+      newErrors.deliveryAddress = 'La dirección de entrega es requerida';
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
   
   // Manejar envío del formulario
   const handleSubmit = (e) => {
     e.preventDefault();
-    const form = e.currentTarget;
     
-    if (form.checkValidity() === false) {
-      e.stopPropagation();
-      setValidated(true);
-      return;
+    if (validateForm()) {
+      // Preparar datos para la orden
+      const orderData = {
+        items: cartItems.map(item => ({
+          id: item.id,
+          quantity: item.quantity
+        })),
+        branch_id: selectedBranchId,
+        delivery_method: deliveryMethod,
+        delivery_address: deliveryAddress,
+        notes
+      };
+      
+      // Crear orden
+      dispatch(createOrder(orderData));
     }
-    
-    // Si llegamos aquí, el formulario es válido
-    onSubmit(formData);
   };
   
-  // Determinar si necesitamos dirección de envío
-  const needsShippingAddress = formData.deliveryMethod === 'DELIVERY';
-  
-  // Lista ficticia de sucursales (en una app real vendría del backend)
-  const branches = [
-    { id: 1, name: 'Casa Matriz Santiago' },
-    { id: 2, name: 'Sucursal Providencia' },
-    { id: 3, name: 'Sucursal Las Condes' },
-    { id: 4, name: 'Sucursal Maipú' },
-    { id: 5, name: 'Sucursal Viña del Mar' }
-  ];
+  // Usar dirección del perfil
+  const useProfileAddress = () => {
+    if (user && user.address) {
+      dispatch(setDeliveryAddress(user.address));
+    }
+  };
   
   return (
-    <Form noValidate validated={validated} onSubmit={handleSubmit}>
-      <Card className="mb-4">
-        <Card.Header as="h5">Información de contacto</Card.Header>
-        <Card.Body>
-          <Row>
-            <Col md={6}>
-              <Form.Group className="mb-3" controlId="formFirstName">
-                <Form.Label>Nombre</Form.Label>
-                <Form.Control
-                  type="text"
-                  name="firstName"
-                  value={formData.firstName}
-                  onChange={handleChange}
-                  required
-                />
-                <Form.Control.Feedback type="invalid">
-                  Por favor ingrese su nombre.
-                </Form.Control.Feedback>
-              </Form.Group>
-            </Col>
-            
-            <Col md={6}>
-              <Form.Group className="mb-3" controlId="formLastName">
-                <Form.Label>Apellido</Form.Label>
-                <Form.Control
-                  type="text"
-                  name="lastName"
-                  value={formData.lastName}
-                  onChange={handleChange}
-                  required
-                />
-                <Form.Control.Feedback type="invalid">
-                  Por favor ingrese su apellido.
-                </Form.Control.Feedback>
-              </Form.Group>
-            </Col>
-          </Row>
-          
-          <Row>
-            <Col md={6}>
-              <Form.Group className="mb-3" controlId="formEmail">
-                <Form.Label>Correo electrónico</Form.Label>
-                <Form.Control
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  required
-                />
-                <Form.Control.Feedback type="invalid">
-                  Por favor ingrese un correo electrónico válido.
-                </Form.Control.Feedback>
-              </Form.Group>
-            </Col>
-            
-            <Col md={6}>
-              <Form.Group className="mb-3" controlId="formPhone">
-                <Form.Label>Teléfono</Form.Label>
-                <Form.Control
-                  type="tel"
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleChange}
-                  required
-                />
-                <Form.Control.Feedback type="invalid">
-                  Por favor ingrese un número de teléfono.
-                </Form.Control.Feedback>
-              </Form.Group>
-            </Col>
-          </Row>
-        </Card.Body>
-      </Card>
-      
-      <Card className="mb-4">
-        <Card.Header as="h5">Método de entrega</Card.Header>
-        <Card.Body>
-          <Form.Group className="mb-3">
-            <Form.Check
-              type="radio"
-              id="deliveryPickup"
-              label="Retiro en tienda (gratis)"
-              name="deliveryMethod"
-              value="PICKUP"
-              checked={formData.deliveryMethod === 'PICKUP'}
-              onChange={handleChange}
-              className="mb-2"
-            />
-            
-            <Form.Check
-              type="radio"
-              id="deliveryShipping"
-              label="Despacho a domicilio ($5.000)"
-              name="deliveryMethod"
-              value="DELIVERY"
-              checked={formData.deliveryMethod === 'DELIVERY'}
-              onChange={handleChange}
-            />
-          </Form.Group>
-          
-          {formData.deliveryMethod === 'PICKUP' ? (
-            <Form.Group className="mt-3">
-              <Form.Label>Seleccionar sucursal para retiro</Form.Label>
-              <Form.Select 
-                name="branchId" 
-                value={formData.branchId} 
-                onChange={handleChange}
-                required
-              >
-                <option value="">Seleccionar sucursal</option>
-                {branches.map(branch => (
-                  <option key={branch.id} value={branch.id}>
-                    {branch.name}
-                  </option>
-                ))}
-              </Form.Select>
-              <Form.Control.Feedback type="invalid">
-                Por favor seleccione una sucursal para retiro.
-              </Form.Control.Feedback>
-            </Form.Group>
-          ) : (
-            <>
-              <Form.Group className="mb-3" controlId="formAddress">
-                <Form.Label>Dirección</Form.Label>
-                <Form.Control
-                  type="text"
-                  name="address"
-                  value={formData.address}
-                  onChange={handleChange}
-                  required={needsShippingAddress}
-                />
-                <Form.Control.Feedback type="invalid">
-                  Por favor ingrese su dirección.
-                </Form.Control.Feedback>
-              </Form.Group>
+    <form onSubmit={handleSubmit}>
+      <div className="row">
+        <div className="col-md-8">
+          <div className="card mb-4">
+            <div className="card-header">
+              <h5 className="mb-0">Información de Entrega</h5>
+            </div>
+            <div className="card-body">
+              {/* Método de entrega */}
+              <div className="mb-4">
+                <label className="form-label">Método de Entrega</label>
+                <div className="form-check mb-2">
+                  <input
+                    className="form-check-input"
+                    type="radio"
+                    name="deliveryMethod"
+                    id="pickupMethod"
+                    value={DELIVERY_METHODS.PICKUP}
+                    checked={deliveryMethod === DELIVERY_METHODS.PICKUP}
+                    onChange={handleDeliveryMethodChange}
+                  />
+                  <label className="form-check-label" htmlFor="pickupMethod">
+                    Retiro en Tienda (Gratis)
+                  </label>
+                </div>
+                <div className="form-check">
+                  <input
+                    className="form-check-input"
+                    type="radio"
+                    name="deliveryMethod"
+                    id="deliveryMethod"
+                    value={DELIVERY_METHODS.DELIVERY}
+                    checked={deliveryMethod === DELIVERY_METHODS.DELIVERY}
+                    onChange={handleDeliveryMethodChange}
+                  />
+                  <label className="form-check-label" htmlFor="deliveryMethod">
+                    Despacho a Domicilio ({formatPrice(5000)})
+                  </label>
+                </div>
+                {errors.deliveryMethod && (
+                  <div className="text-danger mt-1">{errors.deliveryMethod}</div>
+                )}
+              </div>
               
-              <Row>
-                <Col md={6}>
-                  <Form.Group className="mb-3" controlId="formCity">
-                    <Form.Label>Ciudad</Form.Label>
-                    <Form.Control
-                      type="text"
-                      name="city"
-                      value={formData.city}
-                      onChange={handleChange}
-                      required={needsShippingAddress}
-                    />
-                    <Form.Control.Feedback type="invalid">
-                      Por favor ingrese su ciudad.
-                    </Form.Control.Feedback>
-                  </Form.Group>
-                </Col>
-                
-                <Col md={4}>
-                  <Form.Group className="mb-3" controlId="formRegion">
-                    <Form.Label>Región</Form.Label>
-                    <Form.Control
-                      type="text"
-                      name="region"
-                      value={formData.region}
-                      onChange={handleChange}
-                      required={needsShippingAddress}
-                    />
-                    <Form.Control.Feedback type="invalid">
-                      Por favor ingrese su región.
-                    </Form.Control.Feedback>
-                  </Form.Group>
-                </Col>
-                
-                <Col md={2}>
-                  <Form.Group className="mb-3" controlId="formZipCode">
-                    <Form.Label>Código postal</Form.Label>
-                    <Form.Control
-                      type="text"
-                      name="zipCode"
-                      value={formData.zipCode}
-                      onChange={handleChange}
-                      required={needsShippingAddress}
-                    />
-                    <Form.Control.Feedback type="invalid">
-                      Por favor ingrese su código postal.
-                    </Form.Control.Feedback>
-                  </Form.Group>
-                </Col>
-              </Row>
-            </>
-          )}
-        </Card.Body>
-      </Card>
-      
-      <Card className="mb-4">
-        <Card.Header as="h5">Método de pago</Card.Header>
-        <Card.Body>
-          <Form.Group className="mb-3">
-            <Form.Check
-              type="radio"
-              id="paymentCreditCard"
-              label="Tarjeta de crédito"
-              name="paymentMethod"
-              value="CREDIT_CARD"
-              checked={formData.paymentMethod === 'CREDIT_CARD'}
-              onChange={handleChange}
-              className="mb-2"
-            />
-            
-            <Form.Check
-              type="radio"
-              id="paymentDebitCard"
-              label="Tarjeta de débito"
-              name="paymentMethod"
-              value="DEBIT_CARD"
-              checked={formData.paymentMethod === 'DEBIT_CARD'}
-              onChange={handleChange}
-              className="mb-2"
-            />
-            
-            <Form.Check
-              type="radio"
-              id="paymentBankTransfer"
-              label="Transferencia bancaria"
-              name="paymentMethod"
-              value="BANK_TRANSFER"
-              checked={formData.paymentMethod === 'BANK_TRANSFER'}
-              onChange={handleChange}
-            />
-          </Form.Group>
-          
-          {formData.paymentMethod !== 'BANK_TRANSFER' && (
-            <div className="bg-light p-3 rounded mt-3">
-              <p className="mb-0">
-                <i className="bi bi-info-circle me-2"></i>
-                Serás redirigido a WebPay para completar el pago de forma segura.
-              </p>
+              {/* Dirección de entrega (si aplica) */}
+              {deliveryMethod === DELIVERY_METHODS.DELIVERY && (
+                <div className="mb-3">
+                  <label htmlFor="deliveryAddress" className="form-label">
+                    Dirección de Entrega
+                  </label>
+                  <div className="input-group mb-2">
+                    <textarea
+                      id="deliveryAddress"
+                      className={`form-control ${errors.deliveryAddress ? 'is-invalid' : ''}`}
+                      rows="3"
+                      value={deliveryAddress}
+                      onChange={handleAddressChange}
+                      placeholder="Ingrese la dirección completa de entrega"
+                    ></textarea>
+                    <button 
+                      className="btn btn-outline-secondary" 
+                      type="button"
+                      onClick={useProfileAddress}
+                      disabled={!user || !user.address}
+                    >
+                      Usar Mi Dirección
+                    </button>
+                    {errors.deliveryAddress && (
+                      <div className="invalid-feedback">{errors.deliveryAddress}</div>
+                    )}
+                  </div>
+                  <div className="form-text">
+                    Incluya calle, número, departamento, comuna y ciudad.
+                  </div>
+                </div>
+              )}
+              
+              {/* Notas del pedido */}
+              <div className="mb-3">
+                <label htmlFor="orderNotes" className="form-label">
+                  Notas del Pedido (Opcional)
+                </label>
+                <textarea
+                  id="orderNotes"
+                  className="form-control"
+                  rows="3"
+                  value={notes}
+                  onChange={handleNotesChange}
+                  placeholder="Instrucciones especiales para la entrega o preparación del pedido"
+                ></textarea>
+              </div>
             </div>
-          )}
+          </div>
           
-          {formData.paymentMethod === 'BANK_TRANSFER' && (
-            <div className="bg-light p-3 rounded mt-3">
-              <p className="mb-0">
-                <i className="bi bi-info-circle me-2"></i>
-                Recibirás los datos bancarios para realizar la transferencia después de confirmar tu pedido.
-              </p>
+          {/* Productos en el carrito */}
+          <div className="card mb-4 mb-md-0">
+            <div className="card-header">
+              <h5 className="mb-0">Productos ({cartItems.length})</h5>
             </div>
-          )}
-        </Card.Body>
-      </Card>
-      
-      <Card className="mb-4">
-        <Card.Header as="h5">Notas adicionales</Card.Header>
-        <Card.Body>
-          <Form.Group className="mb-3" controlId="formNotes">
-            <Form.Label>Notas sobre tu pedido (opcional)</Form.Label>
-            <Form.Control
-              as="textarea"
-              rows={3}
-              name="notes"
-              value={formData.notes}
-              onChange={handleChange}
-              placeholder="Instrucciones especiales para la entrega, etc."
-            />
-          </Form.Group>
-        </Card.Body>
-      </Card>
-      
-      <div className="d-grid">
-        <Button 
-          variant="primary" 
-          size="lg" 
-          type="submit"
-          disabled={isLoading}
-        >
-          {isLoading ? (
-            <>
-              <Spinner
-                as="span"
-                animation="border"
-                size="sm"
-                role="status"
-                aria-hidden="true"
-                className="me-2"
-              />
-              Procesando...
-            </>
-          ) : (
-            'Confirmar pedido'
-          )}
-        </Button>
+            <div className="card-body">
+              {cartItems.map(item => (
+                <div key={item.id} className="d-flex mb-3">
+                  <div className="me-3">
+                    <img 
+                      src={item.image_url || '/placeholder-image.jpg'} 
+                      alt={item.name} 
+                      className="img-fluid rounded" 
+                      style={{ width: '60px', height: '60px', objectFit: 'contain' }}
+                    />
+                  </div>
+                  <div className="flex-grow-1">
+                    <h6 className="mb-0">{item.name}</h6>
+                    <p className="text-muted small mb-0">
+                      SKU: {item.sku}
+                    </p>
+                    <div className="d-flex justify-content-between">
+                      <span>{item.quantity} x {formatPrice(item.price)}</span>
+                      <span className="fw-bold">{formatPrice(item.quantity * item.price)}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+        
+        <div className="col-md-4">
+          <div className="card">
+            <div className="card-header">
+              <h5 className="mb-0">Resumen del Pedido</h5>
+            </div>
+            <div className="card-body">
+              {/* Desglose de costos */}
+              <div className="d-flex justify-content-between mb-2">
+                <span>Subtotal</span>
+                <span>{formatPrice(cartTotal)}</span>
+              </div>
+              <div className="d-flex justify-content-between mb-2">
+                <span>Envío</span>
+                <span>{deliveryCost > 0 ? formatPrice(deliveryCost) : 'Gratis'}</span>
+              </div>
+              <hr />
+              <div className="d-flex justify-content-between fw-bold mb-4">
+                <span>Total</span>
+                <span>{formatPrice(totalWithDelivery)}</span>
+              </div>
+              
+              {/* Error si existe */}
+              {error && (
+                <div className="alert alert-danger" role="alert">
+                  {error}
+                </div>
+              )}
+              
+              {/* Error de sucursal */}
+              {errors.branch && (
+                <div className="alert alert-danger" role="alert">
+                  {errors.branch}
+                </div>
+              )}
+              
+              {/* Botón de confirmación */}
+              <div className="d-grid">
+                <button 
+                  type="submit" 
+                  className="btn btn-primary py-2"
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <>
+                      <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                      Procesando...
+                    </>
+                  ) : 'Confirmar Pedido'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
-    </Form>
+    </form>
   );
 };
 

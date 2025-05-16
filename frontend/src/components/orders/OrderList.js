@@ -1,329 +1,210 @@
-import React, { useState } from 'react';
-import { 
-  Table, 
-  Badge, 
-  Button, 
-  Form, 
-  InputGroup, 
-  Row, 
-  Col, 
-  Card, 
-  Pagination 
-} from 'react-bootstrap';
+import React from 'react';
+import { Link } from 'react-router-dom';
+import { formatDate, formatOrderNumber, formatOrderStatus } from '../../utils/formatUtils';
+import { formatPrice } from '../../utils/formatUtils';
 
-// Mapa de estados de la orden y sus colores correspondientes
-const statusColors = {
-  'pendiente': 'warning',
-  'aprobado': 'info',
-  'rechazado': 'danger',
-  'en preparación': 'primary',
-  'listo para entrega': 'primary',
-  'enviado': 'info',
-  'entregado': 'success',
-  'cancelado': 'danger'
-};
-
+/**
+ * Componente que muestra una lista de órdenes.
+ * 
+ * @param {Object} props - Propiedades del componente
+ * @param {Array} props.orders - Lista de órdenes a mostrar
+ * @param {boolean} props.loading - Indica si está cargando
+ * @param {Object} props.pagination - Información de paginación
+ * @param {Function} props.onPageChange - Función para cambiar de página
+ * @param {boolean} props.showUser - Indica si mostrar información del usuario
+ * @param {boolean} props.showBranch - Indica si mostrar información de la sucursal
+ * @returns {React.ReactNode} - Lista de órdenes
+ */
 const OrderList = ({ 
   orders, 
-  onSelectOrder, 
-  pagination = null, 
-  onPageChange = null,
-  onSearch = null,
-  onFilterChange = null,
-  isLoading = false,
-  userRole = null
+  loading, 
+  pagination, 
+  onPageChange, 
+  showUser = false,
+  showBranch = false
 }) => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
-  const [dateFilter, setDateFilter] = useState({ from: '', to: '' });
-
-  // Formatear precio
-  const formatPrice = (price) => {
-    return new Intl.NumberFormat('es-CL', {
-      style: 'currency',
-      currency: 'CLP'
-    }).format(price);
-  };
-
-  // Formatear fecha
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('es-CL', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-  };
-
-  // Manejar selección de pedido
-  const handleSelectOrder = (orderId) => {
-    if (onSelectOrder) {
-      onSelectOrder(orderId);
-    }
-  };
-
-  // Manejar búsqueda
-  const handleSearch = (e) => {
-    e.preventDefault();
-    setSearchTerm(e.target.value);
-    if (onSearch) {
-      onSearch(e.target.value);
-    }
-  };
-
-  // Manejar cambio de filtro de estado
-  const handleStatusFilterChange = (e) => {
-    setStatusFilter(e.target.value);
-    if (onFilterChange) {
-      onFilterChange({ ...dateFilter, status: e.target.value });
-    }
-  };
-
-  // Manejar cambio de filtro de fecha
-  const handleDateFilterChange = (e) => {
-    const { name, value } = e.target;
-    const newDateFilter = { ...dateFilter, [name]: value };
-    setDateFilter(newDateFilter);
-    if (onFilterChange) {
-      onFilterChange({ ...newDateFilter, status: statusFilter });
-    }
-  };
-
-  // Manejar cambio de página
-  const handlePageChange = (page) => {
-    if (onPageChange) {
-      onPageChange(page);
-    }
-  };
-
-  // Renderizar paginación
-  const renderPagination = () => {
-    if (!pagination) return null;
-
-    const { page, pages } = pagination;
-    if (pages <= 1) return null;
-
-    const items = [];
-
-    // Primera página
-    items.push(
-      <Pagination.First
-        key="first"
-        onClick={() => handlePageChange(1)}
-        disabled={page === 1}
-      />
-    );
-
-    // Página anterior
-    items.push(
-      <Pagination.Prev
-        key="prev"
-        onClick={() => handlePageChange(page - 1)}
-        disabled={page === 1}
-      />
-    );
-
-    // Mostrar un máximo de 5 páginas centradas alrededor de la página actual
-    const startPage = Math.max(1, page - 2);
-    const endPage = Math.min(pages, page + 2);
-
-    // Añadir elipsis inicial si necesario
-    if (startPage > 1) {
-      items.push(<Pagination.Ellipsis key="ellipsis-start" disabled />);
-    }
-
-    // Añadir páginas numeradas
-    for (let i = startPage; i <= endPage; i++) {
-      items.push(
-        <Pagination.Item
-          key={i}
-          active={i === page}
-          onClick={() => handlePageChange(i)}
-        >
-          {i}
-        </Pagination.Item>
-      );
-    }
-
-    // Añadir elipsis final si necesario
-    if (endPage < pages) {
-      items.push(<Pagination.Ellipsis key="ellipsis-end" disabled />);
-    }
-
-    // Página siguiente
-    items.push(
-      <Pagination.Next
-        key="next"
-        onClick={() => handlePageChange(page + 1)}
-        disabled={page === pages}
-      />
-    );
-
-    // Última página
-    items.push(
-      <Pagination.Last
-        key="last"
-        onClick={() => handlePageChange(pages)}
-        disabled={page === pages}
-      />
-    );
-
+  // Renderizar estado de la orden con color
+  const renderStatus = (status) => {
+    const statusInfo = formatOrderStatus(status);
     return (
-      <Pagination className="justify-content-center mt-4">
-        {items}
-      </Pagination>
+      <span className={`badge bg-${statusInfo.color}`}>
+        {statusInfo.text}
+      </span>
     );
   };
-
+  
+  // Si está cargando, mostrar placeholder
+  if (loading) {
+    return (
+      <div className="card">
+        <div className="card-body">
+          <div className="placeholder-glow">
+            <span className="placeholder col-12"></span>
+            <span className="placeholder col-6"></span>
+            <span className="placeholder col-8"></span>
+            <span className="placeholder col-10"></span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
+  // Si no hay órdenes, mostrar mensaje
+  if (!orders || orders.length === 0) {
+    return (
+      <div className="alert alert-info text-center p-5">
+        <i className="bi bi-inbox fs-1 d-block mb-3"></i>
+        <h4>No hay pedidos para mostrar</h4>
+        <p className="mb-0">No se encontraron pedidos con los filtros seleccionados.</p>
+      </div>
+    );
+  }
+  
+  // Crear paginador
+  const renderPagination = () => {
+    if (!pagination || pagination.pages <= 1) return null;
+    
+    return (
+      <nav aria-label="Paginación de pedidos" className="mt-4">
+        <ul className="pagination justify-content-center">
+          {/* Botón anterior */}
+          <li className={`page-item ${pagination.page <= 1 ? 'disabled' : ''}`}>
+            <button 
+              className="page-link" 
+              onClick={() => onPageChange(pagination.page - 1)}
+              disabled={pagination.page <= 1}
+            >
+              <i className="bi bi-chevron-left"></i>
+            </button>
+          </li>
+          
+          {/* Primera página */}
+          {pagination.page > 3 && (
+            <>
+              <li className="page-item">
+                <button className="page-link" onClick={() => onPageChange(1)}>1</button>
+              </li>
+              {pagination.page > 4 && (
+                <li className="page-item disabled">
+                  <span className="page-link">...</span>
+                </li>
+              )}
+            </>
+          )}
+          
+          {/* Páginas anteriores */}
+          {pagination.page > 1 && (
+            <li className="page-item">
+              <button className="page-link" onClick={() => onPageChange(pagination.page - 1)}>
+                {pagination.page - 1}
+              </button>
+            </li>
+          )}
+          
+          {/* Página actual */}
+          <li className="page-item active">
+            <span className="page-link">{pagination.page}</span>
+          </li>
+          
+          {/* Páginas siguientes */}
+          {pagination.page < pagination.pages && (
+            <li className="page-item">
+              <button className="page-link" onClick={() => onPageChange(pagination.page + 1)}>
+                {pagination.page + 1}
+              </button>
+            </li>
+          )}
+          
+          {/* Última página */}
+          {pagination.page < pagination.pages - 2 && (
+            <>
+              {pagination.page < pagination.pages - 3 && (
+                <li className="page-item disabled">
+                  <span className="page-link">...</span>
+                </li>
+              )}
+              <li className="page-item">
+                <button className="page-link" onClick={() => onPageChange(pagination.pages)}>
+                  {pagination.pages}
+                </button>
+              </li>
+            </>
+          )}
+          
+          {/* Botón siguiente */}
+          <li className={`page-item ${pagination.page >= pagination.pages ? 'disabled' : ''}`}>
+            <button 
+              className="page-link" 
+              onClick={() => onPageChange(pagination.page + 1)}
+              disabled={pagination.page >= pagination.pages}
+            >
+              <i className="bi bi-chevron-right"></i>
+            </button>
+          </li>
+        </ul>
+      </nav>
+    );
+  };
+  
   return (
-    <Card className="mb-4">
-      <Card.Header>
-        <h5 className="mb-0">Pedidos</h5>
-      </Card.Header>
-
-      {/* Filtros */}
-      {(onSearch || onFilterChange) && (
-        <Card.Body className="border-bottom">
-          <Row>
-            {/* Buscar por número de pedido */}
-            {onSearch && (
-              <Col md={6} className="mb-3">
-                <InputGroup>
-                  <InputGroup.Text>
-                    <i className="bi bi-search"></i>
-                  </InputGroup.Text>
-                  <Form.Control
-                    type="text"
-                    placeholder="Buscar por número de pedido..."
-                    value={searchTerm}
-                    onChange={handleSearch}
-                  />
-                </InputGroup>
-              </Col>
-            )}
-
-            {/* Filtrar por estado */}
-            {onFilterChange && (
-              <Col md={onSearch ? 6 : 4} className="mb-3">
-                <Form.Select
-                  value={statusFilter}
-                  onChange={handleStatusFilterChange}
-                >
-                  <option value="">Todos los estados</option>
-                  <option value="pendiente">Pendiente</option>
-                  <option value="aprobado">Aprobado</option>
-                  <option value="rechazado">Rechazado</option>
-                  <option value="en preparación">En preparación</option>
-                  <option value="listo para entrega">Listo para entrega</option>
-                  <option value="enviado">Enviado</option>
-                  <option value="entregado">Entregado</option>
-                  <option value="cancelado">Cancelado</option>
-                </Form.Select>
-              </Col>
-            )}
-
-            {/* Filtrar por fecha */}
-            {onFilterChange && !onSearch && (
-              <>
-                <Col md={4} className="mb-3">
-                  <InputGroup>
-                    <InputGroup.Text>Desde</InputGroup.Text>
-                    <Form.Control
-                      type="date"
-                      name="from"
-                      value={dateFilter.from}
-                      onChange={handleDateFilterChange}
-                    />
-                  </InputGroup>
-                </Col>
-                <Col md={4} className="mb-3">
-                  <InputGroup>
-                    <InputGroup.Text>Hasta</InputGroup.Text>
-                    <Form.Control
-                      type="date"
-                      name="to"
-                      value={dateFilter.to}
-                      onChange={handleDateFilterChange}
-                    />
-                  </InputGroup>
-                </Col>
-              </>
-            )}
-          </Row>
-        </Card.Body>
-      )}
-
-      {/* Lista de pedidos */}
-      <div className="table-responsive">
-        <Table className="table-hover">
-          <thead>
-            <tr>
-              <th>N° Pedido</th>
-              <th>Fecha</th>
-              {userRole === 'admin' && <th>Cliente</th>}
-              <th>Total</th>
-              <th>Estado</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading ? (
+    <div className="card">
+      <div className="card-body">
+        <div className="table-responsive">
+          <table className="table table-hover">
+            <thead>
               <tr>
-                <td colSpan={userRole === 'admin' ? 6 : 5} className="text-center py-4">
-                  <div className="spinner-border text-primary" role="status">
-                    <span className="visually-hidden">Cargando...</span>
-                  </div>
-                </td>
+                <th scope="col">Nº Pedido</th>
+                <th scope="col">Fecha</th>
+                {showUser && <th scope="col">Cliente</th>}
+                {showBranch && <th scope="col">Sucursal</th>}
+                <th scope="col">Estado</th>
+                <th scope="col">Total</th>
+                <th scope="col">Acciones</th>
               </tr>
-            ) : orders && orders.length > 0 ? (
-              orders.map(order => (
-                <tr key={order.id} onClick={() => handleSelectOrder(order.id)} style={{ cursor: 'pointer' }}>
-                  <td>{order.order_number}</td>
-                  <td>{formatDate(order.created_at)}</td>
-                  {userRole === 'admin' && (
+            </thead>
+            <tbody>
+              {orders.map(order => (
+                <tr key={order.id}>
+                  <td>{formatOrderNumber(order.order_number)}</td>
+                  <td>{formatDate(order.created_at, true)}</td>
+                  {showUser && (
                     <td>
                       {order.user ? (
-                        `${order.user.first_name} ${order.user.last_name}`
+                        <span>
+                          {order.user.first_name && order.user.last_name 
+                            ? `${order.user.first_name} ${order.user.last_name}`
+                            : order.user.username}
+                        </span>
                       ) : (
-                        <span className="text-muted">N/A</span>
+                        <span className="text-muted">- No disponible -</span>
                       )}
                     </td>
                   )}
-                  <td>{formatPrice(order.final_amount || order.total_amount)}</td>
+                  {showBranch && (
+                    <td>
+                      {order.branch ? order.branch.name : 'N/A'}
+                    </td>
+                  )}
+                  <td>{renderStatus(order.status)}</td>
+                  <td>{formatPrice(order.final_amount)}</td>
                   <td>
-                    <Badge bg={statusColors[order.status] || 'secondary'}>
-                      {order.status}
-                    </Badge>
-                  </td>
-                  <td>
-                    <Button
-                      variant="outline-primary"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleSelectOrder(order.id);
-                      }}
+                    <Link 
+                      to={`/orders/${order.id}`} 
+                      className="btn btn-sm btn-outline-primary"
                     >
-                      Ver detalles
-                    </Button>
+                      Ver Detalles
+                    </Link>
                   </td>
                 </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan={userRole === 'admin' ? 6 : 5} className="text-center py-4">
-                  No hay pedidos para mostrar
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </Table>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        
+        {/* Paginación */}
+        {renderPagination()}
       </div>
-
-      {/* Paginación */}
-      {renderPagination()}
-    </Card>
+    </div>
   );
 };
 

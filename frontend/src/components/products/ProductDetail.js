@@ -1,310 +1,198 @@
 import React, { useState } from 'react';
-import { Card, Row, Col, Button, Badge, Form, Alert, Tab, Tabs, Table } from 'react-bootstrap';
-import { Link } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { addToCart } from '../../store/cart.slice';
+import { formatPrice } from '../../utils/formatUtils';
 
-const ProductDetail = ({ product, showFullDetails = false }) => {
+/**
+ * Componente que muestra los detalles completos de un producto.
+ * 
+ * @param {Object} props - Propiedades del componente
+ * @param {Object} props.product - Datos completos del producto
+ * @returns {React.ReactNode} - Detalles del producto
+ */
+const ProductDetail = ({ product }) => {
   const dispatch = useDispatch();
   const [quantity, setQuantity] = useState(1);
-  const [selectedBranch, setSelectedBranch] = useState(
-    product?.stocks && product.stocks.length > 0 ? product.stocks[0].branch_id : ''
-  );
-
-  // Formatear precio
-  const formatPrice = (price) => {
-    return new Intl.NumberFormat('es-CL', {
-      style: 'currency',
-      currency: 'CLP'
-    }).format(price);
-  };
-
-  // Calcular precio con descuento si existe
-  const hasDiscount = product?.discount_percentage > 0;
-  const currentPrice = hasDiscount
-    ? product?.price * (1 - product?.discount_percentage / 100)
-    : product?.price;
-
+  
+  // Verificar si el producto tiene descuento
+  const hasDiscount = product.discount_percentage > 0;
+  const currentPrice = product.current_price || product.price;
+  const originalPrice = product.price;
+  
+  // Calcular disponibilidad en sucursales
+  const totalAvailableStock = product.stocks ? 
+    product.stocks.reduce((sum, stock) => sum + stock.quantity, 0) : 0;
+  
   // Manejar cambio de cantidad
   const handleQuantityChange = (e) => {
-    const value = parseInt(e.target.value);
+    const value = parseInt(e.target.value, 10);
     if (value > 0) {
       setQuantity(value);
     }
   };
-
-  // Manejar cambio de sucursal
-  const handleBranchChange = (e) => {
-    setSelectedBranch(e.target.value);
+  
+  // Incrementar cantidad
+  const incrementQuantity = () => {
+    setQuantity(prev => prev + 1);
   };
-
-  // Manejar agregar al carrito
+  
+  // Decrementar cantidad
+  const decrementQuantity = () => {
+    if (quantity > 1) {
+      setQuantity(prev => prev - 1);
+    }
+  };
+  
+  // Agregar al carrito
   const handleAddToCart = () => {
-    dispatch(addToCart({
-      ...product,
-      quantity,
-      branch_id: selectedBranch || (product.stocks && product.stocks.length > 0 ? product.stocks[0].branch_id : null)
-    }));
+    dispatch(addToCart({ product, quantity }));
   };
-
-  // Obtener stock disponible para la sucursal seleccionada
-  const getAvailableStock = () => {
-    if (!product?.stocks) return 0;
-
-    const branchId = selectedBranch || (product.stocks.length > 0 ? product.stocks[0].branch_id : null);
-    const stock = product.stocks.find(s => s.branch_id === branchId);
-
-    return stock ? stock.quantity : 0;
-  };
-
-  // Si no hay producto, mostrar mensaje
-  if (!product) {
-    return (
-      <Card>
-        <Card.Body className="text-center py-5">
-          <div>Producto no disponible</div>
-        </Card.Body>
-      </Card>
-    );
-  }
-
+  
   return (
-    <Card className="product-detail-card">
-      <Card.Body>
-        <Row>
+    <div className="card">
+      <div className="card-body">
+        <div className="row">
           {/* Imagen del producto */}
-          <Col md={5} className="mb-4 mb-md-0">
-            <div className="product-image-container border rounded p-3 bg-white text-center">
-              <img
-                src={product.image_url || 'https://via.placeholder.com/500x500?text=FERREMAS'}
+          <div className="col-md-5 mb-4 mb-md-0">
+            <div className="product-image-container text-center">
+              <img 
+                src={product.image_url || '/placeholder-image.jpg'} 
+                className="img-fluid rounded" 
                 alt={product.name}
-                className="img-fluid product-detail-img"
+                style={{ maxHeight: '350px', objectFit: 'contain' }}
               />
             </div>
-
-            {/* Badges */}
+            {/* Etiquetas de nuevo o descuento */}
             <div className="mt-3">
-              {hasDiscount && (
-                <Badge bg="danger" className="me-2">
-                  -{product.discount_percentage}% DESCUENTO
-                </Badge>
-              )}
-
               {product.is_new && (
-                <Badge bg="primary" className="me-2">
-                  NUEVO
-                </Badge>
+                <span className="badge bg-primary me-2">Nuevo</span>
               )}
-
-              {product.is_featured && (
-                <Badge bg="warning" text="dark">
-                  DESTACADO
-                </Badge>
+              {hasDiscount && (
+                <span className="badge bg-danger">-{product.discount_percentage}% Descuento</span>
               )}
             </div>
-          </Col>
-
+          </div>
+          
           {/* Información del producto */}
-          <Col md={7}>
-            {/* Encabezado */}
-            <h2 className="mb-2">{product.name}</h2>
-
-            <div className="mb-2">
-              <span className="text-muted me-3">
-                SKU: {product.sku}
-              </span>
+          <div className="col-md-7">
+            <h2 className="mb-3">{product.name}</h2>
+            
+            {/* SKU y marca */}
+            <div className="mb-3">
+              <p className="mb-1">
+                <strong>SKU:</strong> {product.sku}
+              </p>
               {product.brand && (
-                <span className="text-muted">
-                  Marca: {product.brand}
-                </span>
+                <p className="mb-1">
+                  <strong>Marca:</strong> {product.brand}
+                </p>
               )}
+              <p className="mb-0">
+                <strong>Categoría:</strong> {product.category}
+                {product.subcategory && ` > ${product.subcategory}`}
+              </p>
             </div>
-
+            
             {/* Precios */}
             <div className="mb-4">
               {hasDiscount ? (
-                <>
-                  <h3 className="product-detail-price mb-0">
+                <div>
+                  <span className="text-danger fs-3 fw-bold me-2">
                     {formatPrice(currentPrice)}
-                  </h3>
-                  <div className="product-detail-discount">
-                    {formatPrice(product.price)}
-                  </div>
-                  <div className="text-success">
-                    Ahorras {formatPrice(product.price - currentPrice)}
-                  </div>
-                </>
+                  </span>
+                  <span className="text-decoration-line-through text-muted fs-5">
+                    {formatPrice(originalPrice)}
+                  </span>
+                  <span className="badge bg-danger ms-2">-{product.discount_percentage}%</span>
+                </div>
               ) : (
-                <h3 className="product-detail-price mb-0">
-                  {formatPrice(product.price)}
-                </h3>
+                <span className="fs-3 fw-bold">
+                  {formatPrice(currentPrice)}
+                </span>
               )}
             </div>
-
+            
             {/* Disponibilidad */}
             <div className="mb-4">
-              <h5>Disponibilidad</h5>
-              {product.stocks && product.stocks.length > 0 ? (
-                <Form.Group className="mb-3">
-                  <Form.Label>Seleccionar sucursal:</Form.Label>
-                  <Form.Select
-                    value={selectedBranch || ''}
-                    onChange={handleBranchChange}
-                  >
+              <p className="mb-2">
+                <strong>Disponibilidad:</strong>{' '}
+                {totalAvailableStock > 0 ? (
+                  <span className="text-success">En stock</span>
+                ) : (
+                  <span className="text-danger">Agotado</span>
+                )}
+              </p>
+              
+              {/* Mostrar disponibilidad por sucursal */}
+              {product.stocks && product.stocks.length > 0 && (
+                <div>
+                  <p className="mb-2"><strong>Disponibilidad por sucursal:</strong></p>
+                  <ul className="list-group mb-3">
                     {product.stocks.map(stock => (
-                      <option
-                        key={stock.branch_id}
-                        value={stock.branch_id}
-                        disabled={stock.quantity <= 0}
-                      >
-                        {stock.branch_name} - {stock.quantity > 0 ? `${stock.quantity} unidades` : 'Sin stock'}
-                      </option>
+                      <li key={stock.branch_id} className="list-group-item d-flex justify-content-between align-items-center">
+                        {stock.branch_name}
+                        {stock.quantity > 0 ? (
+                          <span className="badge bg-success rounded-pill">{stock.quantity} unidades</span>
+                        ) : (
+                          <span className="badge bg-danger rounded-pill">Agotado</span>
+                        )}
+                      </li>
                     ))}
-                  </Form.Select>
-                </Form.Group>
-              ) : (
-                <Alert variant="warning">
-                  No hay información de stock disponible.
-                </Alert>
+                  </ul>
+                </div>
               )}
             </div>
-
-            {/* Cantidad y botón de compra */}
+            
+            {/* Cantidad y botón de agregar al carrito */}
             <div className="mb-4">
-              <Row className="align-items-center">
-                <Col xs={4} sm={3}>
-                  <Form.Group>
-                    <Form.Label>Cantidad:</Form.Label>
-                    <Form.Control
-                      type="number"
-                      min="1"
-                      max={getAvailableStock()}
-                      value={quantity}
-                      onChange={handleQuantityChange}
-                    />
-                  </Form.Group>
-                </Col>
-
-                <Col>
-                  <Button
-                    variant="primary"
-                    size="lg"
-                    className="w-100 mt-4"
-                    onClick={handleAddToCart}
-                    disabled={getAvailableStock() === 0}
-                  >
-                    {getAvailableStock() > 0 ? 'Agregar al carrito' : 'Sin stock disponible'}
-                  </Button>
-                </Col>
-              </Row>
+              <label htmlFor="quantity" className="form-label">Cantidad</label>
+              <div className="input-group mb-3" style={{ maxWidth: '200px' }}>
+                <button 
+                  className="btn btn-outline-secondary" 
+                  type="button"
+                  onClick={decrementQuantity}
+                  disabled={quantity <= 1}
+                >
+                  <i className="bi bi-dash"></i>
+                </button>
+                <input 
+                  type="number" 
+                  className="form-control text-center"
+                  id="quantity"
+                  value={quantity}
+                  onChange={handleQuantityChange}
+                  min="1"
+                />
+                <button 
+                  className="btn btn-outline-secondary" 
+                  type="button"
+                  onClick={incrementQuantity}
+                >
+                  <i className="bi bi-plus"></i>
+                </button>
+              </div>
+              
+              <button 
+                className="btn btn-primary btn-lg"
+                onClick={handleAddToCart}
+                disabled={totalAvailableStock <= 0}
+              >
+                <i className="bi bi-cart-plus me-2"></i>
+                Agregar al Carrito
+              </button>
             </div>
-
+            
             {/* Descripción */}
-            {!showFullDetails && (
-              <div className="mb-3">
-                <h5>Descripción</h5>
-                <p>{product.description || 'No hay descripción disponible para este producto.'}</p>
+            {product.description && (
+              <div className="mt-4">
+                <h4>Descripción</h4>
+                <p className="product-description">{product.description}</p>
               </div>
             )}
-
-            {/* Enlace a detalles completos */}
-            {!showFullDetails && (
-              <Button
-                as={Link}
-                to={`/products/${product.id}`}
-                variant="outline-primary"
-                className="w-100"
-              >
-                Ver detalles completos
-              </Button>
-            )}
-          </Col>
-        </Row>
-
-        {/* Detalles completos en tabs (solo en vista completa) */}
-        {showFullDetails && (
-          <div className="mt-4">
-            <Tabs defaultActiveKey="description" className="mb-3">
-              <Tab eventKey="description" title="Descripción">
-                <div className="p-3">
-                  {product.description ? (
-                    <p>{product.description}</p>
-                  ) : (
-                    <p className="text-muted">No hay descripción disponible para este producto.</p>
-                  )}
-                </div>
-              </Tab>
-
-              <Tab eventKey="details" title="Especificaciones">
-                <div className="p-3">
-                  <Table striped bordered hover>
-                    <tbody>
-                      <tr>
-                        <td>SKU</td>
-                        <td>{product.sku}</td>
-                      </tr>
-                      <tr>
-                        <td>Marca</td>
-                        <td>{product.brand || 'N/A'}</td>
-                      </tr>
-                      <tr>
-                        <td>Código del fabricante</td>
-                        <td>{product.brand_code || 'N/A'}</td>
-                      </tr>
-                      <tr>
-                        <td>Categoría</td>
-                        <td>{product.category || 'N/A'}</td>
-                      </tr>
-                      <tr>
-                        <td>Subcategoría</td>
-                        <td>{product.subcategory || 'N/A'}</td>
-                      </tr>
-                    </tbody>
-                  </Table>
-                </div>
-              </Tab>
-
-              <Tab eventKey="availability" title="Disponibilidad">
-                <div className="p-3">
-                  <Table striped bordered hover>
-                    <thead>
-                      <tr>
-                        <th>Sucursal</th>
-                        <th>Stock disponible</th>
-                        <th>Estado</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {product.stocks && product.stocks.length > 0 ? (
-                        product.stocks.map(stock => (
-                          <tr key={stock.branch_id}>
-                            <td>{stock.branch_name}</td>
-                            <td>{stock.quantity}</td>
-                            <td>
-                              {stock.quantity > 10 ? (
-                                <Badge bg="success">Disponible</Badge>
-                              ) : stock.quantity > 0 ? (
-                                <Badge bg="warning" text="dark">Stock bajo</Badge>
-                              ) : (
-                                <Badge bg="danger">Sin stock</Badge>
-                              )}
-                            </td>
-                          </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td colSpan="3" className="text-center">No hay información de stock disponible</td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </Table>
-                </div>
-              </Tab>
-            </Tabs>
           </div>
-        )}
-      </Card.Body>
-    </Card>
+        </div>
+      </div>
+    </div>
   );
 };
 

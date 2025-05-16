@@ -1,120 +1,166 @@
+/**
+ * Servicio para gestionar pagos
+ */
 import api from './api';
+import { PAYMENT_METHODS, PAYMENT_STATUS } from '../config';
 
 /**
- * Servicio para gestionar operaciones relacionadas con pagos
+ * Servicio de pagos
  */
-const paymentService = {
+class PaymentService {
   /**
-   * Inicia un proceso de pago para una orden
-   * @param {Object} paymentData - Datos del pago
-   * @param {number} paymentData.order_id - ID de la orden
-   * @param {string} paymentData.payment_method - Método de pago (CREDIT_CARD, DEBIT_CARD, BANK_TRANSFER)
-   * @param {string} [paymentData.currency] - Moneda opcional (CLP, USD, EUR, etc.)
-   * @param {string} [paymentData.notes] - Notas opcionales para el pago
-   * @returns {Promise<Object>} - Respuesta con detalles del proceso de pago
-   */
-  initiatePayment: async (paymentData) => {
-    const response = await api.post('/payments/initiate', paymentData);
-    return response.data;
-  },
-
-  /**
-   * Confirma un pago realizado por transferencia bancaria (solo para roles admin/contador)
-   * @param {Object} confirmationData - Datos de confirmación
-   * @param {number} confirmationData.payment_id - ID del pago
-   * @param {string} confirmationData.transaction_id - ID de la transacción (comprobante)
-   * @param {string} [confirmationData.payment_date] - Fecha del pago
-   * @param {string} [confirmationData.notes] - Notas opcionales
-   * @returns {Promise<Object>} - Respuesta con detalles del pago confirmado
-   */
-  confirmTransferPayment: async (confirmationData) => {
-    const response = await api.post('/payments/confirm-transfer', confirmationData);
-    return response.data;
-  },
-
-  /**
-   * Obtiene los pagos asociados a una orden
+   * Iniciar proceso de pago para una orden
    * @param {number} orderId - ID de la orden
-   * @returns {Promise<Object>} - Respuesta con lista de pagos
+   * @param {string} paymentMethod - Método de pago
+   * @param {string} currency - Moneda (opcional)
+   * @param {string} notes - Notas adicionales (opcional)
+   * @returns {Promise} Promesa con resultado de la inicialización del pago
    */
-  getPaymentsByOrder: async (orderId) => {
-    const response = await api.get(`/payments/order/${orderId}`);
-    return response.data;
-  },
-
-  /**
-   * Obtiene detalles de un pago específico
-   * @param {number} paymentId - ID del pago
-   * @returns {Promise<Object>} - Respuesta con detalles del pago
-   */
-  getPayment: async (paymentId) => {
-    const response = await api.get(`/payments/${paymentId}`);
-    return response.data;
-  },
-
-  /**
-   * Cancela un pago (solo para roles admin/contador)
-   * @param {number} paymentId - ID del pago
-   * @param {Object} [data] - Datos adicionales
-   * @param {string} [data.notes] - Notas sobre la cancelación
-   * @returns {Promise<Object>} - Respuesta con confirmación
-   */
-  cancelPayment: async (paymentId, data = {}) => {
-    const response = await api.put(`/payments/cancel/${paymentId}`, data);
-    return response.data;
-  },
-
-  /**
-   * Convierte un monto entre diferentes monedas
-   * @param {number} amount - Monto a convertir
-   * @param {string} from - Moneda de origen (CLP, USD, EUR, etc.)
-   * @param {string} to - Moneda destino
-   * @returns {Promise<Object>} - Respuesta con la conversión
-   */
-  convertCurrency: async (amount, from, to) => {
-    const response = await api.get('/payments/convert', {
-      params: { amount, from, to }
+  async initiatePayment(orderId, paymentMethod, currency = 'CLP', notes = '') {
+    return api.post('/payments/initiate', {
+      order_id: orderId,
+      payment_method: paymentMethod,
+      currency,
+      notes
     });
-    return response.data;
-  },
-
-  /**
-   * Obtiene tasas de cambio disponibles
-   * @param {string} [from] - Moneda de origen opcional
-   * @param {string} [to] - Moneda destino opcional
-   * @returns {Promise<Object>} - Respuesta con tasas de cambio
-   */
-  getExchangeRates: async (from, to) => {
-    const params = {};
-    if (from) params.from = from;
-    if (to) params.to = to;
-    
-    const response = await api.get('/payments/exchange-rates', { params });
-    return response.data;
-  },
-
-  /**
-   * Procesa la respuesta de WebPay después de un pago
-   * @param {string} token - Token WS de WebPay
-   * @returns {Promise<Object>} - Respuesta con resultado del pago
-   */
-  processWebPayResponse: async (token) => {
-    const response = await api.post('/payments/webpay-response', { token });
-    return response.data;
-  },
-
-  /**
-   * Formatea un precio según la moneda y localización
-   * @param {number} price - Precio a formatear
-   * @param {string} [currency='CLP'] - Código de moneda
-   * @returns {string} - Precio formateado (ej: "$10.000")
-   */
-  formatPrice: (price, currency = 'CLP') => {
-    return new Intl.NumberFormat('es-CL', {
-      style: 'currency',
-      currency: currency
-    }).format(price);
   }
-};
 
+  /**
+   * Confirmar pago por transferencia (solo admin/contador)
+   * @param {number} paymentId - ID del pago
+   * @param {string} transactionId - ID de transacción
+   * @param {string} notes - Notas adicionales (opcional)
+   * @returns {Promise} Promesa con resultado de la confirmación
+   */
+  async confirmTransferPayment(paymentId, transactionId, notes = '') {
+    return api.post('/payments/confirm-transfer', {
+      payment_id: paymentId,
+      transaction_id: transactionId,
+      notes
+    });
+  }
+
+  /**
+   * Obtener pagos por ID de orden
+   * @param {number} orderId - ID de la orden
+   * @returns {Promise} Promesa con lista de pagos
+   */
+  async getPaymentsByOrder(orderId) {
+    return api.get(`/payments/order/${orderId}`);
+  }
+
+  /**
+   * Obtener detalles de un pago por ID
+   * @param {number} paymentId - ID del pago
+   * @returns {Promise} Promesa con detalles del pago
+   */
+  async getPaymentById(paymentId) {
+    return api.get(`/payments/${paymentId}`);
+  }
+
+  /**
+   * Cancelar un pago (solo admin/contador)
+   * @param {number} paymentId - ID del pago
+   * @param {string} notes - Motivo de cancelación (opcional)
+   * @returns {Promise} Promesa con resultado de la cancelación
+   */
+  async cancelPayment(paymentId, notes = '') {
+    return api.put(`/payments/cancel/${paymentId}`, { notes });
+  }
+
+  /**
+   * Obtener tasas de cambio disponibles
+   * @param {string} fromCurrency - Moneda origen (opcional)
+   * @param {string} toCurrency - Moneda destino (opcional)
+   * @returns {Promise} Promesa con tasas de cambio
+   */
+  async getExchangeRates(fromCurrency = 'CLP', toCurrency = null) {
+    let endpoint = `/payments/exchange-rates?from=${fromCurrency}`;
+    if (toCurrency) {
+      endpoint += `&to=${toCurrency}`;
+    }
+    return api.get(endpoint);
+  }
+
+  /**
+   * Convertir monto entre monedas
+   * @param {number} amount - Monto a convertir
+   * @param {string} fromCurrency - Moneda origen
+   * @param {string} toCurrency - Moneda destino
+   * @returns {Promise} Promesa con resultado de la conversión
+   */
+  async convertAmount(amount, fromCurrency = 'CLP', toCurrency = 'USD') {
+    return api.get(`/payments/convert?amount=${amount}&from=${fromCurrency}&to=${toCurrency}`);
+  }
+
+  /**
+   * Actualizar tasas de cambio (solo admin)
+   * @returns {Promise} Promesa con resultado de la actualización
+   */
+  async updateExchangeRates() {
+    return api.post('/payments/update-rates');
+  }
+
+  /**
+   * Obtener información y color de un estado de pago para UI
+   * @param {string} status - Estado del pago
+   * @returns {Object} Objeto con texto formateado y color
+   */
+  getPaymentStatusInfo(status) {
+    const statusMap = {
+      'pendiente': { text: 'Pendiente', color: 'warning' },
+      'procesando': { text: 'Procesando', color: 'info' },
+      'completado': { text: 'Completado', color: 'success' },
+      'fallido': { text: 'Fallido', color: 'danger' },
+      'reembolsado': { text: 'Reembolsado', color: 'secondary' },
+      'cancelado': { text: 'Cancelado', color: 'danger' }
+    };
+    
+    return statusMap[status] || { text: status, color: 'secondary' };
+  }
+
+  /**
+   * Obtener información de método de pago para UI
+   * @param {string} method - Método de pago
+   * @returns {Object} Objeto con texto formateado e icono
+   */
+  getPaymentMethodInfo(method) {
+    const methodMap = {
+      'tarjeta de crédito': { text: 'Tarjeta de Crédito', icon: 'credit-card' },
+      'tarjeta de débito': { text: 'Tarjeta de Débito', icon: 'credit-card' },
+      'transferencia bancaria': { text: 'Transferencia Bancaria', icon: 'bank' },
+      'efectivo': { text: 'Efectivo', icon: 'cash' }
+    };
+    
+    return methodMap[method] || { text: method, icon: 'credit-card' };
+  }
+
+  /**
+   * Verificar si un pago puede ser gestionado (cancelado/confirmado)
+   * @param {string} status - Estado del pago
+   * @returns {boolean} true si el pago puede ser gestionado
+   */
+  isPaymentManageable(status) {
+    return [PAYMENT_STATUS.PENDING, PAYMENT_STATUS.PROCESSING].includes(status);
+  }
+
+  /**
+   * Formatear monto con símbolo de moneda
+   * @param {number} amount - Monto
+   * @param {string} currency - Código de moneda
+   * @returns {string} Monto formateado
+   */
+  formatCurrency(amount, currency = 'CLP') {
+    const formatter = new Intl.NumberFormat('es-CL', {
+      style: 'currency',
+      currency: currency,
+      minimumFractionDigits: currency === 'CLP' ? 0 : 2
+    });
+    
+    return formatter.format(amount);
+  }
+}
+
+// Exportar una instancia única del servicio
+const paymentService = new PaymentService();
 export default paymentService;

@@ -1,351 +1,406 @@
-import React, { useEffect, useState } from 'react';
-import { 
-  Container, 
-  Row, 
-  Col, 
-  Button, 
-  Form, 
-  Badge, 
-  Alert, 
-  Spinner, 
-  Breadcrumb, 
-  Tab, 
-  Tabs, 
-  Table 
-} from 'react-bootstrap';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useParams, Link } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-
 import { 
-  fetchProductById,
-  selectProduct,
-  selectIsLoading,
-  selectError,
-  clearProduct
-} from '../../store/product.slice';
+  Box, Typography, Grid, Button, CircularProgress, 
+  Alert, Paper, Chip, Divider, IconButton, Rating,
+  Table, TableBody, TableCell, TableContainer, TableRow
+} from '@mui/material';
+import { 
+  AddShoppingCart, Remove, Add, Storefront, 
+  LocalShipping, ArrowBack 
+} from '@mui/icons-material';
+import api from '../../services/api';
+import { addToCart, updateQuantity } from '../../store/cart.slice';
 
-// Importaremos las acciones del carrito cuando las creemos
-// import { addToCart } from '../../store/cart.slice';
+import StockAlert from '../../components/common/StockAlert';
 
 const ProductPage = () => {
-  const { id } = useParams();
+  const { productId } = useParams();
   const dispatch = useDispatch();
-  const navigate = useNavigate();
+  const { items: cartItems } = useSelector(state => state.cart);
   
-  const product = useSelector(selectProduct);
-  const isLoading = useSelector(selectIsLoading);
-  const error = useSelector(selectError);
-  
+  const [product, setProduct] = useState(null);
   const [quantity, setQuantity] = useState(1);
-  const [selectedBranch, setSelectedBranch] = useState('');
-  
-  // Cargar producto al montar o cuando cambia el ID
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [selectedBranch, setSelectedBranch] = useState(null);
+
   useEffect(() => {
-    dispatch(fetchProductById(id));
+    fetchProduct();
+  }, [productId]);
+
+  const fetchProduct = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await api.get(`/products/${productId}`);
+      setProduct(response.data.product);
+      
+      // Seleccionar la primera sucursal con stock por defecto
+      if (response.data.product.stocks && response.data.product.stocks.length > 0) {
+        const availableStock = response.data.product.stocks.find(stock => stock.is_available);
+        if (availableStock) {
+          setSelectedBranch(availableStock.branch_id);
+        }
+      }
+      
+      // Si el producto ya está en el carrito, actualizar la cantidad
+      const cartItem = cartItems.find(item => item.productId === parseInt(productId));
+      if (cartItem) {
+        setQuantity(cartItem.quantity);
+      }
+      
+    } catch (err) {
+      console.error('Error al cargar producto:', err);
+      setError('No se pudo cargar la información del producto. Intente nuevamente.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleQuantityChange = (newQuantity) => {
+    // Asegurar que la cantidad sea al menos 1
+    const validQuantity = Math.max(1, newQuantity);
+    setQuantity(validQuantity);
+  };
+
+  const handleAddToCart = () => {
+    if (!product) return;
     
-    // Limpiar producto al desmontar
-    return () => {
-      dispatch(clearProduct());
-    };
-  }, [dispatch, id]);
-  
-  // Formatear precio
-  const formatPrice = (price) => {
+    const cartItem = cartItems.find(item => item.productId === product.id);
+    
+    if (cartItem) {
+      // Actualizar cantidad si ya existe en el carrito
+      dispatch(updateQuantity({
+        productId: product.id,
+        quantity
+      }));
+    } else {
+      // Agregar nuevo item al carrito
+      dispatch(addToCart({
+        productId: product.id,
+        name: product.name,
+        price: product.current_price,
+        image: product.image_url,
+        quantity
+      }));
+    }
+  };
+
+  // Formatear precio en pesos chilenos
+  const formatCurrency = (price) => {
     return new Intl.NumberFormat('es-CL', {
       style: 'currency',
       currency: 'CLP'
     }).format(price);
   };
-  
-  // Calcular precio con descuento si existe
-  const hasDiscount = product?.discount_percentage > 0;
-  const currentPrice = hasDiscount
-    ? product?.price * (1 - product?.discount_percentage / 100)
-    : product?.price;
-  
-  // Manejar cambio de cantidad
-  const handleQuantityChange = (e) => {
-    const value = parseInt(e.target.value);
-    if (value > 0) {
-      setQuantity(value);
-    }
-  };
-  
-  // Manejar cambio de sucursal
-  const handleBranchChange = (e) => {
-    setSelectedBranch(e.target.value);
-  };
-  
-  // Manejar agregar al carrito
-  const handleAddToCart = () => {
-    // Cuando implementemos el slice del carrito, descomentar esta línea
-    // dispatch(addToCart({ 
-    //   ...product, 
-    //   quantity, 
-    //   branch_id: selectedBranch || (product.stocks && product.stocks.length > 0 ? product.stocks[0].branch_id : null)
-    // }));
+
+  // Obtener stock disponible en la sucursal seleccionada
+  const getSelectedBranchStock = () => {
+    if (!product || !product.stocks || !selectedBranch) return null;
     
-    // Por ahora, solo mostrar un mensaje en consola
-    console.log('Agregado al carrito:', {
-      ...product,
-      quantity,
-      branch_id: selectedBranch || (product?.stocks && product.stocks.length > 0 ? product.stocks[0].branch_id : null)
-    });
-    
-    // Navegar al carrito
-    // navigate('/cart');
+    return product.stocks.find(stock => stock.branch_id === selectedBranch);
   };
-  
-  // Verificar disponibilidad en sucursales
-  const isAvailableInBranch = (branchId) => {
-    if (!product?.stocks) return false;
-    
-    const stock = product.stocks.find(s => s.branch_id === branchId);
-    return stock && stock.quantity > 0;
-  };
-  
-  // Obtener stock disponible para la sucursal seleccionada
-  const getAvailableStock = () => {
-    if (!product?.stocks) return 0;
-    
-    const branchId = selectedBranch || (product.stocks.length > 0 ? product.stocks[0].branch_id : null);
-    const stock = product.stocks.find(s => s.branch_id === branchId);
-    
-    return stock ? stock.quantity : 0;
-  };
-  
-  // Si está cargando, mostrar un indicador de carga
-  if (isLoading) {
+
+  if (loading) {
     return (
-      <Container className="py-5 text-center">
-        <Spinner animation="border" role="status" variant="primary">
-          <span className="visually-hidden">Cargando producto...</span>
-        </Spinner>
-        <p className="mt-3">Cargando información del producto...</p>
-      </Container>
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
+        <CircularProgress />
+      </Box>
     );
   }
-  
-  // Si hay un error, mostrar mensaje de error
+
   if (error) {
     return (
-      <Container className="py-5">
-        <Alert variant="danger">
-          <Alert.Heading>Error al cargar el producto</Alert.Heading>
-          <p>{error}</p>
-          <Button variant="outline-danger" onClick={() => navigate('/products')}>
-            Volver al catálogo
-          </Button>
-        </Alert>
-      </Container>
+      <Box p={3}>
+        <Alert severity="error">{error}</Alert>
+        <Button 
+          component={Link} 
+          to="/catalog"
+          startIcon={<ArrowBack />}
+          sx={{ mt: 2 }}
+        >
+          Volver al catálogo
+        </Button>
+      </Box>
     );
   }
-  
-  // Si no hay producto, mostrar mensaje
+
   if (!product) {
     return (
-      <Container className="py-5">
-        <Alert variant="info">
-          <p className="mb-0">El producto no existe o ha sido eliminado.</p>
-          <Button variant="primary" className="mt-3" onClick={() => navigate('/products')}>
-            Volver al catálogo
-          </Button>
-        </Alert>
-      </Container>
+      <Box p={3}>
+        <Alert severity="info">Producto no encontrado</Alert>
+        <Button 
+          component={Link} 
+          to="/catalog"
+          startIcon={<ArrowBack />}
+          sx={{ mt: 2 }}
+        >
+          Volver al catálogo
+        </Button>
+      </Box>
     );
   }
-  
+
   return (
-    <Container className="py-4">
-      {/* Breadcrumb */}
-      <Breadcrumb className="mb-4">
-        <Breadcrumb.Item linkAs={Link} linkProps={{ to: '/' }}>Inicio</Breadcrumb.Item>
-        <Breadcrumb.Item linkAs={Link} linkProps={{ to: '/products' }}>Productos</Breadcrumb.Item>
-        {product.category && (
-          <Breadcrumb.Item 
-            linkAs={Link} 
-            linkProps={{ to: `/products?category=${product.category}` }}
-          >
-            {product.category}
-          </Breadcrumb.Item>
-        )}
-        <Breadcrumb.Item active>{product.name}</Breadcrumb.Item>
-      </Breadcrumb>
+    <Box p={3}>
+      <Button 
+        component={Link} 
+        to="/catalog"
+        startIcon={<ArrowBack />}
+        sx={{ mb: 3 }}
+      >
+        Volver al catálogo
+      </Button>
       
-      <Row>
+      <Grid container spacing={4}>
         {/* Imagen del producto */}
-        <Col lg={5} md={6} className="mb-4">
-          <div className="product-image-container border rounded p-3 bg-white text-center">
-            <img 
-              src={product.image_url || 'https://via.placeholder.com/500x500?text=FERREMAS'} 
-              alt={product.name} 
-              className="img-fluid product-detail-img"
+        <Grid item xs={12} md={5}>
+          <Paper elevation={2} sx={{ p: 2, height: '100%' }}>
+            <Box 
+              component="img"
+              src={product.image_url || '/img/placeholder-product.jpg'}
+              alt={product.name}
+              sx={{ 
+                width: '100%', 
+                height: 'auto',
+                maxHeight: 400,
+                objectFit: 'contain'
+              }}
             />
-          </div>
-          
-          {/* Badges */}
-          <div className="mt-3">
-            {hasDiscount && (
-              <Badge bg="danger" className="me-2">
-                -{product.discount_percentage}% DESCUENTO
-              </Badge>
-            )}
-            
-            {product.is_new && (
-              <Badge bg="primary" className="me-2">
-                NUEVO
-              </Badge>
-            )}
-            
-            {product.is_featured && (
-              <Badge bg="warning" text="dark">
-                DESTACADO
-              </Badge>
-            )}
-          </div>
-        </Col>
+          </Paper>
+        </Grid>
         
         {/* Información del producto */}
-        <Col lg={7} md={6}>
-          {/* Encabezado */}
-          <h1 className="mb-2">{product.name}</h1>
+        <Grid item xs={12} md={7}>
+          <Box mb={2}>
+            <Box display="flex" alignItems="center" mb={1}>
+              {product.is_new && (
+                <Chip 
+                  label="Nuevo" 
+                  color="primary" 
+                  size="small" 
+                  sx={{ mr: 1 }}
+                />
+              )}
+              {product.is_featured && (
+                <Chip 
+                  label="Destacado" 
+                  color="secondary" 
+                  size="small" 
+                  sx={{ mr: 1 }}
+                />
+              )}
+              <Typography variant="body2" color="textSecondary">
+                SKU: {product.sku}
+              </Typography>
+            </Box>
+            
+            <Typography variant="h4" component="h1" gutterBottom>
+              {product.name}
+            </Typography>
+            
+            <Box display="flex" alignItems="center" mb={2}>
+              <Typography variant="body2" color="textSecondary" sx={{ mr: 2 }}>
+                Marca: {product.brand || 'No especificada'}
+              </Typography>
+              <Typography variant="body2" color="textSecondary">
+                Categoría: {product.category}
+                {product.subcategory && ` > ${product.subcategory}`}
+              </Typography>
+            </Box>
+          </Box>
           
-          <div className="mb-2">
-            <span className="text-muted me-3">
-              SKU: {product.sku}
-            </span>
-            {product.brand && (
-              <span className="text-muted">
-                Marca: {product.brand}
-              </span>
-            )}
-          </div>
-          
-          {/* Precios */}
-          <div className="mb-4">
-            {hasDiscount ? (
-              <>
-                <h2 className="product-detail-price mb-0">
-                  {formatPrice(currentPrice)}
-                </h2>
-                <div className="product-detail-discount">
-                  {formatPrice(product.price)}
-                </div>
-                <div className="text-success">
-                  Ahorras {formatPrice(product.price - currentPrice)}
-                </div>
-              </>
-            ) : (
-              <h2 className="product-detail-price mb-0">
-                {formatPrice(product.price)}
-              </h2>
-            )}
-          </div>
-          
-          {/* Disponibilidad */}
-          <div className="mb-4">
-            <h5>Disponibilidad</h5>
-            {product.stocks && product.stocks.length > 0 ? (
-              <Form.Group className="mb-3">
-                <Form.Label>Seleccionar sucursal:</Form.Label>
-                <Form.Select 
-                  value={selectedBranch || ''}
-                  onChange={handleBranchChange}
+          <Box mb={3}>
+            {product.discount_percentage > 0 ? (
+              <Box>
+                <Typography 
+                  variant="body1" 
+                  color="textSecondary" 
+                  sx={{ textDecoration: 'line-through' }}
                 >
-                  {product.stocks.map(stock => (
-                    <option 
-                      key={stock.branch_id} 
-                      value={stock.branch_id}
-                      disabled={stock.quantity <= 0}
-                    >
-                      {stock.branch_name} - {stock.quantity > 0 ? `${stock.quantity} unidades` : 'Sin stock'}
-                    </option>
-                  ))}
-                </Form.Select>
-              </Form.Group>
+                  {formatCurrency(product.price)}
+                </Typography>
+                <Box display="flex" alignItems="center">
+                  <Typography variant="h4" color="primary" sx={{ mr: 2 }}>
+                    {formatCurrency(product.current_price)}
+                  </Typography>
+                  <Chip 
+                    label={`-${product.discount_percentage}%`} 
+                    color="error" 
+                    size="small"
+                  />
+                </Box>
+              </Box>
             ) : (
-              <Alert variant="warning">
-                No hay información de stock disponible.
+              <Typography variant="h4" color="primary">
+                {formatCurrency(product.current_price)}
+              </Typography>
+            )}
+          </Box>
+          
+          <Divider sx={{ my: 2 }} />
+          
+          {/* Disponibilidad en sucursales */}
+          <Box mb={3}>
+            <Typography variant="subtitle1" gutterBottom>
+              Disponibilidad
+            </Typography>
+            
+            {product.stocks && product.stocks.length > 0 ? (
+              <Box>
+                <TableContainer component={Paper} variant="outlined" sx={{ mb: 2 }}>
+                  <Table size="small">
+                    <TableBody>
+                      {product.stocks.map((stock) => (
+                        <TableRow 
+                          key={stock.branch_id}
+                          onClick={() => setSelectedBranch(stock.branch_id)}
+                          hover
+                          selected={selectedBranch === stock.branch_id}
+                          sx={{ cursor: 'pointer' }}
+                        >
+                          <TableCell>
+                            <Typography variant="body2">
+                              {stock.branch_name}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            {stock.is_available ? (
+                              <Chip 
+                                label="Disponible" 
+                                color="success" 
+                                size="small"
+                                icon={<Storefront />}
+                              />
+                            ) : (
+                              <Chip 
+                                label="Sin stock" 
+                                color="error" 
+                                size="small"
+                              />
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+                
+                {getSelectedBranchStock()?.is_available ? (
+                  <Box display="flex" alignItems="center" mb={3}>
+                    <Typography variant="subtitle1" sx={{ mr: 2 }}>
+                      Cantidad:
+                    </Typography>
+                    <IconButton 
+                      size="small"
+                      onClick={() => handleQuantityChange(quantity - 1)}
+                      disabled={quantity <= 1}
+                    >
+                      <Remove />
+                    </IconButton>
+                    <Typography sx={{ mx: 2 }}>
+                      {quantity}
+                    </Typography>
+                    <IconButton 
+                      size="small"
+                      onClick={() => handleQuantityChange(quantity + 1)}
+                    >
+                      <Add />
+                    </IconButton>
+                  </Box>
+                ) : (
+                  <StockAlert 
+                    productName={product.name}
+                    branchName={product.stocks.find(s => s.branch_id === selectedBranch)?.branch_name || ''}
+                  />
+                )}
+                
+                <Button
+                  variant="contained"
+                  color="primary"
+                  startIcon={<AddShoppingCart />}
+                  fullWidth
+                  disabled={!getSelectedBranchStock()?.is_available}
+                  onClick={handleAddToCart}
+                  size="large"
+                >
+                  {cartItems.some(item => item.productId === product.id)
+                    ? 'Actualizar en carrito'
+                    : 'Agregar al carrito'}
+                </Button>
+                
+                <Box mt={2}>
+                  <Typography variant="body2" color="textSecondary">
+                    <LocalShipping fontSize="small" sx={{ verticalAlign: 'middle', mr: 1 }} />
+                    Disponible para despacho a domicilio y retiro en tienda
+                  </Typography>
+                </Box>
+              </Box>
+            ) : (
+              <Alert severity="warning">
+                No hay información de disponibilidad para este producto
               </Alert>
             )}
-          </div>
+          </Box>
           
-          {/* Cantidad y botón de compra */}
-          <div className="mb-4">
-            <Row className="align-items-center">
-              <Col xs={4} sm={3}>
-                <Form.Group>
-                  <Form.Label>Cantidad:</Form.Label>
-                  <Form.Control
-                    type="number"
-                    min="1"
-                    max={getAvailableStock()}
-                    value={quantity}
-                    onChange={handleQuantityChange}
-                  />
-                </Form.Group>
-              </Col>
-              
-              <Col>
-                <Button 
-                  variant="primary" 
-                  size="lg" 
-                  className="w-100 mt-4"
-                  onClick={handleAddToCart}
-                  disabled={getAvailableStock() === 0}
-                >
-                  {getAvailableStock() > 0 ? 'Agregar al carrito' : 'Sin stock disponible'}
-                </Button>
-              </Col>
-            </Row>
-          </div>
+          <Divider sx={{ my: 2 }} />
           
-          {/* Descripción y detalles en tabs */}
-          <Tabs defaultActiveKey="description" className="mb-3">
-            <Tab eventKey="description" title="Descripción">
-              <div className="p-3">
-                {product.description ? (
-                  <p>{product.description}</p>
-                ) : (
-                  <p className="text-muted">No hay descripción disponible para este producto.</p>
-                )}
-              </div>
-            </Tab>
-            
-            <Tab eventKey="details" title="Especificaciones">
-              <div className="p-3">
-                <Table striped bordered hover>
-                  <tbody>
-                    <tr>
-                      <td>SKU</td>
-                      <td>{product.sku}</td>
-                    </tr>
-                    <tr>
-                      <td>Marca</td>
-                      <td>{product.brand || 'N/A'}</td>
-                    </tr>
-                    <tr>
-                      <td>Código del fabricante</td>
-                      <td>{product.brand_code || 'N/A'}</td>
-                    </tr>
-                    <tr>
-                      <td>Categoría</td>
-                      <td>{product.category || 'N/A'}</td>
-                    </tr>
-                    <tr>
-                      <td>Subcategoría</td>
-                      <td>{product.subcategory || 'N/A'}</td>
-                    </tr>
-                  </tbody>
+          {/* Descripción del producto */}
+          <Box mb={3}>
+            <Typography variant="subtitle1" gutterBottom>
+              Descripción
+            </Typography>
+            <Typography variant="body2" paragraph>
+              {product.description || 'No hay descripción disponible para este producto.'}
+            </Typography>
+          </Box>
+          
+          {/* Especificaciones del producto */}
+          {product.brand_code && (
+            <Box mb={3}>
+              <Typography variant="subtitle1" gutterBottom>
+                Especificaciones
+              </Typography>
+              <TableContainer component={Paper} variant="outlined">
+                <Table size="small">
+                  <TableBody>
+                    <TableRow>
+                      <TableCell component="th" scope="row" width="40%">
+                        Marca
+                      </TableCell>
+                      <TableCell>{product.brand}</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell component="th" scope="row">
+                        Código de fabricante
+                      </TableCell>
+                      <TableCell>{product.brand_code}</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell component="th" scope="row">
+                        Categoría
+                      </TableCell>
+                      <TableCell>{product.category}</TableCell>
+                    </TableRow>
+                    {product.subcategory && (
+                      <TableRow>
+                        <TableCell component="th" scope="row">
+                          Subcategoría
+                        </TableCell>
+                        <TableCell>{product.subcategory}</TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
                 </Table>
-              </div>
-            </Tab>
-          </Tabs>
-        </Col>
-      </Row>
-      
-      {/* Sección de productos relacionados se puede agregar aquí */}
-    </Container>
+              </TableContainer>
+            </Box>
+          )}
+        </Grid>
+      </Grid>
+    </Box>
   );
 };
 

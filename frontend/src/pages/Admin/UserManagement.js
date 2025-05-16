@@ -1,50 +1,37 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useSelector } from 'react-redux';
+import api from '../../services/api';
 import { 
-  Container, 
-  Table, 
-  Button, 
-  Modal, 
-  Form, 
-  Row, 
-  Col, 
-  Badge, 
-  Alert, 
-  Spinner, 
-  Pagination,
-  Card,
-  InputGroup
-} from 'react-bootstrap';
-import { useDispatch } from 'react-redux';
-
-import authService from '../../services/auth.service';
+  Box, Typography, Paper, TextField, Button, 
+  Table, TableBody, TableCell, TableContainer, 
+  TableHead, TableRow, TablePagination, 
+  Dialog, DialogActions, DialogContent, 
+  DialogTitle, FormControl, InputLabel,
+  Select, MenuItem, Alert, IconButton,
+  Grid, FormControlLabel, Checkbox, Chip
+} from '@mui/material';
+import { Add, Edit, Delete, Search } from '@mui/icons-material';
 
 const UserManagement = () => {
-  // Estados para datos de usuarios
+  const { user } = useSelector(state => state.auth);
   const [users, setUsers] = useState([]);
-  const [pagination, setPagination] = useState({
-    page: 1,
-    pages: 1,
-    total: 0,
-    per_page: 10
-  });
-  const [isLoading, setIsLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
-  // Estado para modales
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  // Estado para paginación y filtros
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [roleFilter, setRoleFilter] = useState('');
   
-  // Estado para el usuario actual en edición/eliminación
+  // Estado para modal de usuario
+  const [openModal, setOpenModal] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
-  
-  // Estado para el formulario
   const [formData, setFormData] = useState({
     username: '',
     email: '',
     password: '',
-    confirmPassword: '',
-    role: 'customer',
+    role: '',
     first_name: '',
     last_name: '',
     rut: '',
@@ -53,67 +40,103 @@ const UserManagement = () => {
     is_active: true
   });
   
-  // Estado para búsqueda
-  const [searchTerm, setSearchTerm] = useState('');
-  const [roleFilter, setRoleFilter] = useState('');
-  
-  // Estado para errores de formulario
-  const [formError, setFormError] = useState(null);
-  
-  // Estado para operaciones
-  const [operationLoading, setOperationLoading] = useState(false);
-  const [operationSuccess, setOperationSuccess] = useState(null);
-  
-  // Cargar usuarios
-  const loadUsers = async (page = 1, filters = {}) => {
-    setIsLoading(true);
-    setError(null);
-    
+  // Roles disponibles
+  const userRoles = [
+    { value: 'admin', label: 'Administrador' },
+    { value: 'vendor', label: 'Vendedor' },
+    { value: 'warehouse', label: 'Bodeguero' },
+    { value: 'accountant', label: 'Contador' },
+    { value: 'customer', label: 'Cliente' }
+  ];
+
+  useEffect(() => {
+    fetchUsers();
+  }, [page, rowsPerPage, roleFilter]);
+
+  const fetchUsers = async () => {
     try {
-      const response = await authService.getUsers(page, {
-        ...filters,
-        per_page: 10
+      setLoading(true);
+      setError(null);
+      
+      // Construir parámetros de consulta
+      const params = new URLSearchParams({
+        page: page + 1,  // API usa base 1 para páginas
+        per_page: rowsPerPage
       });
       
-      setUsers(response.users);
-      setPagination(response.pagination);
+      if (roleFilter) {
+        params.append('role', roleFilter);
+      }
+      
+      if (searchTerm) {
+        params.append('search', searchTerm);
+      }
+      
+      const response = await api.get(`/auth/users?${params.toString()}`);
+      setUsers(response.data.users);
+      
     } catch (err) {
-      setError(err.response?.data?.error || 'Error al cargar usuarios');
+      console.error('Error al cargar usuarios:', err);
+      setError('No se pudieron cargar los usuarios. Intente nuevamente.');
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
-  
-  // Cargar usuarios al montar el componente
-  useEffect(() => {
-    loadUsers();
-  }, []);
-  
-  // Manejar cambio de página
-  const handlePageChange = (page) => {
-    loadUsers(page, { 
-      search: searchTerm, 
-      role: roleFilter 
-    });
+
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage);
   };
-  
-  // Manejar búsqueda
-  const handleSearch = (e) => {
+
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
+  const handleSearchSubmit = (e) => {
     e.preventDefault();
-    loadUsers(1, { 
-      search: searchTerm, 
-      role: roleFilter 
-    });
+    fetchUsers();
   };
-  
-  // Resetear búsqueda
-  const handleResetSearch = () => {
-    setSearchTerm('');
-    setRoleFilter('');
-    loadUsers(1);
+
+  const handleOpenModal = (userData = null) => {
+    if (userData) {
+      // Editar usuario existente
+      setCurrentUser(userData);
+      setFormData({
+        username: userData.username,
+        email: userData.email,
+        password: '', // No se carga la contraseña
+        role: userData.role,
+        first_name: userData.first_name || '',
+        last_name: userData.last_name || '',
+        rut: userData.rut || '',
+        phone: userData.phone || '',
+        address: userData.address || '',
+        is_active: userData.is_active
+      });
+    } else {
+      // Nuevo usuario
+      setCurrentUser(null);
+      setFormData({
+        username: '',
+        email: '',
+        password: '',
+        role: 'customer',
+        first_name: '',
+        last_name: '',
+        rut: '',
+        phone: '',
+        address: '',
+        is_active: true
+      });
+    }
+    setOpenModal(true);
   };
-  
-  // Manejar cambios en el formulario
+
+  const handleCloseModal = () => {
+    setOpenModal(false);
+    setCurrentUser(null);
+  };
+
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData({
@@ -121,880 +144,391 @@ const UserManagement = () => {
       [name]: type === 'checkbox' ? checked : value
     });
   };
-  
-  // Abrir modal de agregar
-  const handleShowAddModal = () => {
-    setFormData({
-      username: '',
-      email: '',
-      password: '',
-      confirmPassword: '',
-      role: 'customer',
-      first_name: '',
-      last_name: '',
-      rut: '',
-      phone: '',
-      address: '',
-      is_active: true
-    });
-    setFormError(null);
-    setOperationSuccess(null);
-    setShowAddModal(true);
-  };
-  
-  // Abrir modal de edición
-  const handleShowEditModal = (user) => {
-    setCurrentUser(user);
-    setFormData({
-      username: user.username,
-      email: user.email,
-      password: '',
-      confirmPassword: '',
-      role: user.role,
-      first_name: user.first_name || '',
-      last_name: user.last_name || '',
-      rut: user.rut || '',
-      phone: user.phone || '',
-      address: user.address || '',
-      is_active: user.is_active
-    });
-    setFormError(null);
-    setOperationSuccess(null);
-    setShowEditModal(true);
-  };
-  
-  // Abrir modal de eliminación
-  const handleShowDeleteModal = (user) => {
-    setCurrentUser(user);
-    setFormError(null);
-    setOperationSuccess(null);
-    setShowDeleteModal(true);
-  };
-  
-  // Cerrar modales
-  const handleCloseModals = () => {
-    setShowAddModal(false);
-    setShowEditModal(false);
-    setShowDeleteModal(false);
-    setCurrentUser(null);
-  };
-  
-  // Validar formulario
-  const validateForm = () => {
-    // Validar campos requeridos
-    if (!formData.username || !formData.email || (!currentUser && !formData.password)) {
-      setFormError('Los campos usuario, email y contraseña son obligatorios');
-      return false;
-    }
-    
-    // Validar formato de email
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.email)) {
-      setFormError('El formato del email no es válido');
-      return false;
-    }
-    
-    // Validar contraseña si está creando o cambiando
-    if (formData.password) {
-      // Verificar fortaleza de contraseña
-      if (formData.password.length < 8) {
-        setFormError('La contraseña debe tener al menos 8 caracteres');
-        return false;
-      }
-      
-      // Verificar que las contraseñas coincidan
-      if (formData.password !== formData.confirmPassword) {
-        setFormError('Las contraseñas no coinciden');
-        return false;
-      }
-    }
-    
-    return true;
-  };
-  
-  // Crear usuario
-  const handleAddUser = async () => {
-    if (!validateForm()) return;
-    
-    setOperationLoading(true);
-    setFormError(null);
+
+  const handleSubmitUser = async (e) => {
+    e.preventDefault();
     
     try {
-      // Preparar datos (eliminar confirmPassword)
-      const { confirmPassword, ...userData } = formData;
+      setLoading(true);
+      setError(null);
       
-      // Llamar al servicio
-      await authService.createUser(userData);
-      
-      // Actualizar lista
-      loadUsers();
-      
-      // Mostrar mensaje de éxito
-      setOperationSuccess('Usuario creado exitosamente');
-      
-      // Cerrar modal después de un momento
-      setTimeout(() => {
-        handleCloseModals();
-        setOperationSuccess(null);
-      }, 2000);
-      
-    } catch (err) {
-      setFormError(err.response?.data?.error || 'Error al crear el usuario');
-    } finally {
-      setOperationLoading(false);
-    }
-  };
-  
-  // Actualizar usuario
-  const handleUpdateUser = async () => {
-    if (!validateForm()) return;
-    
-    setOperationLoading(true);
-    setFormError(null);
-    
-    try {
-      // Preparar datos (eliminar confirmPassword)
-      const { confirmPassword, ...userData } = formData;
-      
-      // Si no se proporciona contraseña, eliminarla del objeto
-      if (!userData.password) {
-        delete userData.password;
+      // Validar campos requeridos
+      if (!formData.username || !formData.email || !formData.role) {
+        setError('Faltan campos requeridos');
+        setLoading(false);
+        return;
       }
       
-      // Llamar al servicio
-      await authService.updateUser(currentUser.id, userData);
+      // Si es un nuevo usuario, se requiere contraseña
+      if (!currentUser && !formData.password) {
+        setError('La contraseña es requerida para nuevos usuarios');
+        setLoading(false);
+        return;
+      }
       
-      // Actualizar lista
-      loadUsers(pagination.page, { 
-        search: searchTerm, 
-        role: roleFilter 
-      });
+      // Crear o actualizar usuario
+      if (currentUser) {
+        // Actualizar usuario existente
+        await api.put(`/auth/users/${currentUser.id}`, formData);
+      } else {
+        // Crear nuevo usuario
+        await api.post('/auth/users', formData);
+      }
       
-      // Mostrar mensaje de éxito
-      setOperationSuccess('Usuario actualizado exitosamente');
-      
-      // Cerrar modal después de un momento
-      setTimeout(() => {
-        handleCloseModals();
-        setOperationSuccess(null);
-      }, 2000);
+      // Cerrar modal y actualizar lista
+      handleCloseModal();
+      fetchUsers();
       
     } catch (err) {
-      setFormError(err.response?.data?.error || 'Error al actualizar el usuario');
+      console.error('Error al guardar usuario:', err);
+      setError(err.response?.data?.error || 'Error al guardar el usuario');
     } finally {
-      setOperationLoading(false);
+      setLoading(false);
     }
   };
-  
-  // Eliminar usuario
-  const handleDeleteUser = async () => {
-    setOperationLoading(true);
-    setFormError(null);
+
+  const handleDeleteUser = async (userId) => {
+    if (!window.confirm('¿Está seguro que desea eliminar este usuario?')) {
+      return;
+    }
     
     try {
-      // Llamar al servicio
-      await authService.deleteUser(currentUser.id);
+      setLoading(true);
+      setError(null);
+      
+      await api.delete(`/auth/users/${userId}`);
       
       // Actualizar lista
-      loadUsers(pagination.page, { 
-        search: searchTerm, 
-        role: roleFilter 
-      });
-      
-      // Mostrar mensaje de éxito
-      setOperationSuccess('Usuario eliminado exitosamente');
-      
-      // Cerrar modal después de un momento
-      setTimeout(() => {
-        handleCloseModals();
-        setOperationSuccess(null);
-      }, 2000);
+      fetchUsers();
       
     } catch (err) {
-      setFormError(err.response?.data?.error || 'Error al eliminar el usuario');
+      console.error('Error al eliminar usuario:', err);
+      setError('No se pudo eliminar el usuario. Intente nuevamente.');
     } finally {
-      setOperationLoading(false);
+      setLoading(false);
     }
   };
-  
-  // Renderizar paginación
-  const renderPagination = () => {
-    const { page, pages } = pagination;
-    
-    // No mostrar si solo hay una página
-    if (pages <= 1) return null;
-    
-    // Crear items de paginación
-    const items = [];
-    
-    // Primera página
-    items.push(
-      <Pagination.First 
-        key="first" 
-        onClick={() => handlePageChange(1)}
-        disabled={page === 1}
-      />
-    );
-    
-    // Página anterior
-    items.push(
-      <Pagination.Prev 
-        key="prev" 
-        onClick={() => handlePageChange(page - 1)}
-        disabled={page === 1}
-      />
-    );
-    
-    // Mostrar un máximo de 5 páginas centradas alrededor de la página actual
-    const startPage = Math.max(1, page - 2);
-    const endPage = Math.min(pages, page + 2);
-    
-    // Añadir elipsis inicial si necesario
-    if (startPage > 1) {
-      items.push(<Pagination.Ellipsis key="ellipsis-start" disabled />);
-    }
-    
-    // Añadir páginas numeradas
-    for (let i = startPage; i <= endPage; i++) {
-      items.push(
-        <Pagination.Item
-          key={i}
-          active={i === page}
-          onClick={() => handlePageChange(i)}
-        >
-          {i}
-        </Pagination.Item>
-      );
-    }
-    
-    // Añadir elipsis final si necesario
-    if (endPage < pages) {
-      items.push(<Pagination.Ellipsis key="ellipsis-end" disabled />);
-    }
-    
-    // Página siguiente
-    items.push(
-      <Pagination.Next 
-        key="next" 
-        onClick={() => handlePageChange(page + 1)}
-        disabled={page === pages}
-      />
-    );
-    
-    // Última página
-    items.push(
-      <Pagination.Last 
-        key="last" 
-        onClick={() => handlePageChange(pages)}
-        disabled={page === pages}
-      />
-    );
-    
-    return (
-      <Pagination className="justify-content-center mt-4">
-        {items}
-      </Pagination>
-    );
-  };
-  
-  // Helper para mostrar badge de rol
-  const renderRoleBadge = (role) => {
+
+  // Renderizar chip de estado según el rol
+  const renderRoleChip = (role) => {
+    let color;
     switch (role) {
       case 'admin':
-        return <Badge bg="danger">Administrador</Badge>;
+        color = 'error';
+        break;
       case 'vendor':
-        return <Badge bg="success">Vendedor</Badge>;
+        color = 'primary';
+        break;
       case 'warehouse':
-        return <Badge bg="primary">Bodeguero</Badge>;
+        color = 'warning';
+        break;
       case 'accountant':
-        return <Badge bg="info">Contador</Badge>;
+        color = 'info';
+        break;
       case 'customer':
-        return <Badge bg="secondary">Cliente</Badge>;
+        color = 'success';
+        break;
       default:
-        return <Badge bg="light" text="dark">{role}</Badge>;
+        color = 'default';
     }
+    
+    const label = userRoles.find(r => r.value === role)?.label || role;
+    
+    return <Chip label={label} color={color} size="small" />;
   };
-  
+
+  if (!user || user.role !== 'admin') {
+    return (
+      <Box p={3}>
+        <Alert severity="error">
+          No tiene permisos para acceder a esta página
+        </Alert>
+      </Box>
+    );
+  }
+
   return (
-    <Container className="py-4">
-      <h1 className="mb-4">Gestión de Usuarios</h1>
+    <Box p={3}>
+      <Typography variant="h4" gutterBottom component="h1">
+        Gestión de Usuarios
+      </Typography>
       
-      <Card className="mb-4">
-        <Card.Body>
-          <div className="d-flex justify-content-between align-items-center mb-3">
-            <Button variant="primary" onClick={handleShowAddModal}>
-              <i className="bi bi-person-plus-fill me-2"></i>
-              Agregar Usuario
+      {error && (
+        <Alert severity="error" className="mb-4">
+          {error}
+        </Alert>
+      )}
+      
+      {/* Filtros y búsqueda */}
+      <Paper elevation={2} sx={{ p: 2, mb: 3 }}>
+        <Grid container spacing={2} alignItems="center">
+          <Grid item xs={12} sm={6} md={4}>
+            <form onSubmit={handleSearchSubmit}>
+              <TextField
+                fullWidth
+                label="Buscar usuarios"
+                variant="outlined"
+                size="small"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                InputProps={{
+                  endAdornment: (
+                    <IconButton type="submit" edge="end">
+                      <Search />
+                    </IconButton>
+                  ),
+                }}
+              />
+            </form>
+          </Grid>
+          
+          <Grid item xs={12} sm={6} md={3}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Rol</InputLabel>
+              <Select
+                value={roleFilter}
+                label="Rol"
+                onChange={(e) => setRoleFilter(e.target.value)}
+              >
+                <MenuItem value="">Todos</MenuItem>
+                {userRoles.map((role) => (
+                  <MenuItem key={role.value} value={role.value}>
+                    {role.label}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+          
+          <Grid item xs={12} sm={12} md={5} textAlign="right">
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<Add />}
+              onClick={() => handleOpenModal()}
+            >
+              Nuevo Usuario
             </Button>
-            
-            <Form onSubmit={handleSearch} className="d-flex">
-              <InputGroup>
-                <Form.Control
-                  type="text"
-                  placeholder="Buscar usuarios..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  aria-label="Buscar usuarios"
-                />
-                <Form.Select 
-                  value={roleFilter}
-                  onChange={(e) => setRoleFilter(e.target.value)}
-                  style={{ maxWidth: '150px' }}
-                >
-                  <option value="">Todos los roles</option>
-                  <option value="admin">Administrador</option>
-                  <option value="vendor">Vendedor</option>
-                  <option value="warehouse">Bodeguero</option>
-                  <option value="accountant">Contador</option>
-                  <option value="customer">Cliente</option>
-                </Form.Select>
-                <Button variant="outline-secondary" onClick={handleResetSearch} type="button">
-                  <i className="bi bi-x-circle"></i>
-                </Button>
-                <Button variant="primary" type="submit">
-                  <i className="bi bi-search"></i>
-                </Button>
-              </InputGroup>
-            </Form>
-          </div>
-          
-          {error && (
-            <Alert variant="danger">
-              {error}
-            </Alert>
-          )}
-          
-          {isLoading ? (
-            <div className="text-center py-4">
-              <Spinner animation="border" role="status" variant="primary">
-                <span className="visually-hidden">Cargando...</span>
-              </Spinner>
-              <p className="mt-2">Cargando usuarios...</p>
-            </div>
-          ) : (
-            <>
-              <div className="table-responsive">
-                <Table striped hover>
-                  <thead>
-                    <tr>
-                      <th>Usuario</th>
-                      <th>Nombre</th>
-                      <th>Email</th>
-                      <th>Rol</th>
-                      <th>Estado</th>
-                      <th>Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {users.length === 0 ? (
-                      <tr>
-                        <td colSpan="6" className="text-center">
-                          No hay usuarios disponibles
-                        </td>
-                      </tr>
-                    ) : (
-                      users.map(user => (
-                        <tr key={user.id}>
-                          <td>{user.username}</td>
-                          <td>
-                            {user.first_name} {user.last_name}
-                            {user.rut && (
-                              <div className="small text-muted">
-                                RUT: {user.rut}
-                              </div>
-                            )}
-                          </td>
-                          <td>{user.email}</td>
-                          <td>{renderRoleBadge(user.role)}</td>
-                          <td>
-                            {user.is_active ? (
-                              <Badge bg="success">Activo</Badge>
-                            ) : (
-                              <Badge bg="danger">Inactivo</Badge>
-                            )}
-                          </td>
-                          <td>
-                            <Button
-                              variant="outline-primary"
-                              size="sm"
-                              className="me-1 mb-1"
-                              onClick={() => handleShowEditModal(user)}
-                            >
-                              <i className="bi bi-pencil"></i>
-                            </Button>
-                            
-                            <Button
-                              variant="outline-danger"
-                              size="sm"
-                              className="mb-1"
-                              onClick={() => handleShowDeleteModal(user)}
-                            >
-                              <i className="bi bi-trash"></i>
-                            </Button>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </Table>
-              </div>
-              
-              {/* Paginación */}
-              {renderPagination()}
-            </>
-          )}
-        </Card.Body>
-      </Card>
+          </Grid>
+        </Grid>
+      </Paper>
       
-      {/* Modal para agregar usuario */}
-      <Modal show={showAddModal} onHide={handleCloseModals} size="lg">
-        <Modal.Header closeButton>
-          <Modal.Title>Agregar Usuario</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          {formError && (
-            <Alert variant="danger">{formError}</Alert>
-          )}
-          
-          {operationSuccess && (
-            <Alert variant="success">{operationSuccess}</Alert>
-          )}
-          
-          <Form>
-            <Row>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Nombre de usuario *</Form.Label>
-                  <Form.Control
-                    type="text"
-                    name="username"
-                    value={formData.username}
-                    onChange={handleInputChange}
-                    required
-                  />
-                  <Form.Text className="text-muted">
-                    El nombre de usuario debe ser único.
-                  </Form.Text>
-                </Form.Group>
-              </Col>
-              
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Email *</Form.Label>
-                  <Form.Control
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
-            
-            <Row>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Contraseña *</Form.Label>
-                  <Form.Control
-                    type="password"
-                    name="password"
-                    value={formData.password}
-                    onChange={handleInputChange}
-                    required
-                  />
-                  <Form.Text className="text-muted">
-                    Mínimo 8 caracteres.
-                  </Form.Text>
-                </Form.Group>
-              </Col>
-              
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Confirmar contraseña *</Form.Label>
-                  <Form.Control
-                    type="password"
-                    name="confirmPassword"
-                    value={formData.confirmPassword}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
-            
-            <Row>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Rol *</Form.Label>
-                  <Form.Select
+      {/* Tabla de usuarios */}
+      <Paper elevation={2}>
+        <TableContainer>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>Usuario</TableCell>
+                <TableCell>Correo Electrónico</TableCell>
+                <TableCell>Nombre</TableCell>
+                <TableCell>RUT</TableCell>
+                <TableCell>Rol</TableCell>
+                <TableCell align="center">Estado</TableCell>
+                <TableCell align="center">Acciones</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {loading && page === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} align="center">
+                    Cargando usuarios...
+                  </TableCell>
+                </TableRow>
+              ) : users.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} align="center">
+                    No se encontraron usuarios
+                  </TableCell>
+                </TableRow>
+              ) : (
+                users.map((userData) => (
+                  <TableRow key={userData.id}>
+                    <TableCell>{userData.username}</TableCell>
+                    <TableCell>{userData.email}</TableCell>
+                    <TableCell>
+                      {userData.first_name} {userData.last_name}
+                    </TableCell>
+                    <TableCell>{userData.rut}</TableCell>
+                    <TableCell>
+                      {renderRoleChip(userData.role)}
+                    </TableCell>
+                    <TableCell align="center">
+                      <Chip 
+                        label={userData.is_active ? 'Activo' : 'Inactivo'} 
+                        color={userData.is_active ? 'success' : 'default'}
+                        size="small"
+                      />
+                    </TableCell>
+                    <TableCell align="center">
+                      <IconButton 
+                        color="primary"
+                        onClick={() => handleOpenModal(userData)}
+                      >
+                        <Edit />
+                      </IconButton>
+                      {user.id !== userData.id && (
+                        <IconButton
+                          color="error"
+                          onClick={() => handleDeleteUser(userData.id)}
+                        >
+                          <Delete />
+                        </IconButton>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+        
+        <TablePagination
+          rowsPerPageOptions={[5, 10, 25, 50]}
+          component="div"
+          count={-1} // No conocemos el total exacto desde la API
+          rowsPerPage={rowsPerPage}
+          page={page}
+          onPageChange={handleChangePage}
+          onRowsPerPageChange={handleChangeRowsPerPage}
+          labelDisplayedRows={({ from, to }) => `${from}-${to}`}
+        />
+      </Paper>
+      
+      {/* Modal de usuario */}
+      <Dialog open={openModal} onClose={handleCloseModal} maxWidth="md" fullWidth>
+        <DialogTitle>
+          {currentUser ? 'Editar Usuario' : 'Nuevo Usuario'}
+        </DialogTitle>
+        <DialogContent>
+          <form id="user-form" onSubmit={handleSubmitUser}>
+            <Grid container spacing={2} sx={{ mt: 1 }}>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Nombre de Usuario"
+                  name="username"
+                  value={formData.username}
+                  onChange={handleInputChange}
+                  required
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Correo Electrónico"
+                  name="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  required
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label={currentUser ? "Nueva Contraseña (dejar en blanco para no cambiar)" : "Contraseña"}
+                  name="password"
+                  type="password"
+                  value={formData.password}
+                  onChange={handleInputChange}
+                  required={!currentUser}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <FormControl fullWidth required>
+                  <InputLabel>Rol</InputLabel>
+                  <Select
                     name="role"
                     value={formData.role}
+                    label="Rol"
                     onChange={handleInputChange}
-                    required
                   >
-                    <option value="customer">Cliente</option>
-                    <option value="vendor">Vendedor</option>
-                    <option value="warehouse">Bodeguero</option>
-                    <option value="accountant">Contador</option>
-                    <option value="admin">Administrador</option>
-                  </Form.Select>
-                </Form.Group>
-              </Col>
-              
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Check
-                    type="switch"
-                    id="userActive"
-                    label="Usuario activo"
-                    name="is_active"
-                    checked={formData.is_active}
-                    onChange={handleInputChange}
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
-            
-            <Row>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Nombre</Form.Label>
-                  <Form.Control
-                    type="text"
-                    name="first_name"
-                    value={formData.first_name}
-                    onChange={handleInputChange}
-                  />
-                </Form.Group>
-              </Col>
-              
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Apellido</Form.Label>
-                  <Form.Control
-                    type="text"
-                    name="last_name"
-                    value={formData.last_name}
-                    onChange={handleInputChange}
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
-            
-            <Row>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>RUT</Form.Label>
-                  <Form.Control
-                    type="text"
-                    name="rut"
-                    value={formData.rut}
-                    onChange={handleInputChange}
-                  />
-                </Form.Group>
-              </Col>
-              
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Teléfono</Form.Label>
-                  <Form.Control
-                    type="text"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleInputChange}
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
-            
-            <Form.Group className="mb-3">
-              <Form.Label>Dirección</Form.Label>
-              <Form.Control
-                as="textarea"
-                rows={2}
-                name="address"
-                value={formData.address}
-                onChange={handleInputChange}
-              />
-            </Form.Group>
-          </Form>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={handleCloseModals}>
-            Cancelar
-          </Button>
-          <Button 
-            variant="primary" 
-            onClick={handleAddUser}
-            disabled={operationLoading}
-          >
-            {operationLoading ? (
-              <>
-                <Spinner
-                  as="span"
-                  animation="border"
-                  size="sm"
-                  role="status"
-                  aria-hidden="true"
-                  className="me-2"
+                    {userRoles.map((role) => (
+                      <MenuItem key={role.value} value={role.value}>
+                        {role.label}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Nombre"
+                  name="first_name"
+                  value={formData.first_name}
+                  onChange={handleInputChange}
                 />
-                Guardando...
-              </>
-            ) : (
-              'Guardar usuario'
-            )}
-          </Button>
-        </Modal.Footer>
-      </Modal>
-      
-      {/* Modal para editar usuario */}
-      <Modal show={showEditModal} onHide={handleCloseModals} size="lg">
-        <Modal.Header closeButton>
-          <Modal.Title>Editar Usuario</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          {formError && (
-            <Alert variant="danger">{formError}</Alert>
-          )}
-          
-          {operationSuccess && (
-            <Alert variant="success">{operationSuccess}</Alert>
-          )}
-          
-          <Form>
-            <Row>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Nombre de usuario *</Form.Label>
-                  <Form.Control
-                    type="text"
-                    name="username"
-                    value={formData.username}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </Form.Group>
-              </Col>
-              
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Email *</Form.Label>
-                  <Form.Control
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
-            
-            <Row>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Contraseña (dejar en blanco para mantener)</Form.Label>
-                  <Form.Control
-                    type="password"
-                    name="password"
-                    value={formData.password}
-                    onChange={handleInputChange}
-                  />
-                  <Form.Text className="text-muted">
-                    Dejar en blanco para mantener la contraseña actual.
-                  </Form.Text>
-                </Form.Group>
-              </Col>
-              
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Confirmar contraseña</Form.Label>
-                  <Form.Control
-                    type="password"
-                    name="confirmPassword"
-                    value={formData.confirmPassword}
-                    onChange={handleInputChange}
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
-            
-            <Row>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Rol *</Form.Label>
-                  <Form.Select
-                    name="role"
-                    value={formData.role}
-                    onChange={handleInputChange}
-                    required
-                  >
-                    <option value="customer">Cliente</option>
-                    <option value="vendor">Vendedor</option>
-                    <option value="warehouse">Bodeguero</option>
-                    <option value="accountant">Contador</option>
-                    <option value="admin">Administrador</option>
-                  </Form.Select>
-                </Form.Group>
-              </Col>
-              
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Check
-                    type="switch"
-                    id="userActiveEdit"
-                    label="Usuario activo"
-                    name="is_active"
-                    checked={formData.is_active}
-                    onChange={handleInputChange}
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
-            
-            <Row>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Nombre</Form.Label>
-                  <Form.Control
-                    type="text"
-                    name="first_name"
-                    value={formData.first_name}
-                    onChange={handleInputChange}
-                  />
-                </Form.Group>
-              </Col>
-              
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Apellido</Form.Label>
-                  <Form.Control
-                    type="text"
-                    name="last_name"
-                    value={formData.last_name}
-                    onChange={handleInputChange}
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
-            
-            <Row>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>RUT</Form.Label>
-                  <Form.Control
-                    type="text"
-                    name="rut"
-                    value={formData.rut}
-                    onChange={handleInputChange}
-                  />
-                </Form.Group>
-              </Col>
-              
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Teléfono</Form.Label>
-                  <Form.Control
-                    type="text"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleInputChange}
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
-            
-            <Form.Group className="mb-3">
-              <Form.Label>Dirección</Form.Label>
-              <Form.Control
-                as="textarea"
-                rows={2}
-                name="address"
-                value={formData.address}
-                onChange={handleInputChange}
-              />
-            </Form.Group>
-          </Form>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={handleCloseModals}>
-            Cancelar
-          </Button>
-          <Button 
-            variant="primary" 
-            onClick={handleUpdateUser}
-            disabled={operationLoading}
-          >
-            {operationLoading ? (
-              <>
-                <Spinner
-                  as="span"
-                  animation="border"
-                  size="sm"
-                  role="status"
-                  aria-hidden="true"
-                  className="me-2"
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Apellido"
+                  name="last_name"
+                  value={formData.last_name}
+                  onChange={handleInputChange}
                 />
-                Actualizando...
-              </>
-            ) : (
-              'Actualizar usuario'
-            )}
-          </Button>
-        </Modal.Footer>
-      </Modal>
-      
-      {/* Modal para confirmar eliminación */}
-      <Modal show={showDeleteModal} onHide={handleCloseModals}>
-        <Modal.Header closeButton>
-          <Modal.Title>Confirmar eliminación</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          {formError && (
-            <Alert variant="danger">{formError}</Alert>
-          )}
-          
-          {operationSuccess && (
-            <Alert variant="success">{operationSuccess}</Alert>
-          )}
-          
-          <p>
-            ¿Estás seguro de que deseas eliminar el usuario{' '}
-            <strong>{currentUser?.username}</strong>?
-          </p>
-          <p className="text-danger">
-            Esta acción no se puede deshacer.
-          </p>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={handleCloseModals}>
-            Cancelar
-          </Button>
-          <Button 
-            variant="danger" 
-            onClick={handleDeleteUser}
-            disabled={operationLoading}
-          >
-            {operationLoading ? (
-              <>
-                <Spinner
-                  as="span"
-                  animation="border"
-                  size="sm"
-                  role="status"
-                  aria-hidden="true"
-                  className="me-2"
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="RUT"
+                  name="rut"
+                  value={formData.rut}
+                  onChange={handleInputChange}
+                  placeholder="12.345.678-9"
                 />
-                Eliminando...
-              </>
-            ) : (
-              'Eliminar usuario'
-            )}
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Teléfono"
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleInputChange}
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Dirección"
+                  name="address"
+                  value={formData.address}
+                  onChange={handleInputChange}
+                  multiline
+                  rows={2}
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      name="is_active"
+                      checked={formData.is_active}
+                      onChange={handleInputChange}
+                    />
+                  }
+                  label="Usuario Activo"
+                />
+              </Grid>
+            </Grid>
+          </form>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseModal}>Cancelar</Button>
+          <Button 
+            type="submit" 
+            form="user-form"
+            variant="contained" 
+            color="primary"
+            disabled={loading}
+          >
+            Guardar
           </Button>
-        </Modal.Footer>
-      </Modal>
-    </Container>
+        </DialogActions>
+      </Dialog>
+    </Box>
   );
 };
 

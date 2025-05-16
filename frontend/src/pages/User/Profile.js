@@ -1,215 +1,249 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Row, Col, Card, Form, Button, Alert, Spinner, Tab, Nav } from 'react-bootstrap';
-import { useDispatch, useSelector } from 'react-redux';
-import { selectCurrentUser, selectIsLoading, selectAuthError } from '../../store/auth.slice';
-
-// En una aplicación real, importaríamos acciones para actualizar el perfil
-// import { updateProfile } from '../../store/auth.slice';
+import { useSelector, useDispatch } from 'react-redux';
+import { 
+  Box, Typography, Paper, Grid, TextField, 
+  Button, Avatar, Alert, Divider
+} from '@mui/material';
+import { Save, Edit, Person } from '@mui/icons-material';
+import api from '../../services/api';
+import { updateProfile } from '../../store/auth.slice';
 
 const Profile = () => {
   const dispatch = useDispatch();
-  const currentUser = useSelector(selectCurrentUser);
-  const isLoading = useSelector(selectIsLoading);
-  const error = useSelector(selectAuthError);
+  const { user, loading } = useSelector(state => state.auth);
   
-  const [profileData, setProfileData] = useState({
+  const [formData, setFormData] = useState({
     first_name: '',
     last_name: '',
-    email: '',
     phone: '',
     address: ''
   });
-  
-  const [validated, setValidated] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
-  
-  // Cargar datos del usuario cuando el componente se monta
+  const [isEditing, setIsEditing] = useState(false);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(false);
+
   useEffect(() => {
-    if (currentUser) {
-      setProfileData({
-        first_name: currentUser.first_name || '',
-        last_name: currentUser.last_name || '',
-        email: currentUser.email || '',
-        phone: currentUser.phone || '',
-        address: currentUser.address || ''
+    if (user) {
+      setFormData({
+        first_name: user.first_name || '',
+        last_name: user.last_name || '',
+        phone: user.phone || '',
+        address: user.address || ''
       });
     }
-  }, [currentUser]);
-  
-  const handleChange = (e) => {
+  }, [user]);
+
+  if (!user) {
+    return (
+      <Box p={3}>
+        <Alert severity="error">
+          Debe iniciar sesión para acceder a esta página
+        </Alert>
+      </Box>
+    );
+  }
+
+  const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setProfileData(prevData => ({
-      ...prevData,
+    setFormData({
+      ...formData,
       [name]: value
-    }));
+    });
   };
-  
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const form = e.currentTarget;
-    
-    if (form.checkValidity() === false) {
-      e.stopPropagation();
-      setValidated(true);
-      return;
-    }
-    
-    // Limpiar mensajes
-    setSuccessMessage('');
+    setError(null);
+    setSuccess(false);
     
     try {
-      // En una aplicación real, aquí despacharíamos la acción para actualizar el perfil
-      // await dispatch(updateProfile(profileData)).unwrap();
+      const resultAction = await dispatch(updateProfile(formData));
       
-      // Simulamos una actualización exitosa
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      setSuccessMessage('Perfil actualizado correctamente');
+      if (updateProfile.fulfilled.match(resultAction)) {
+        setSuccess(true);
+        setIsEditing(false);
+      } else {
+        setError(resultAction.error.message || 'Error al actualizar el perfil');
+      }
     } catch (err) {
-      // El error ya se maneja en el slice
-      console.error('Error al actualizar perfil:', err);
+      setError('Error de conexión. Intente nuevamente.');
+      console.error(err);
     }
   };
-  
+
+  // Generar iniciales para el avatar
+  const getInitials = () => {
+    if (user.first_name && user.last_name) {
+      return `${user.first_name.charAt(0)}${user.last_name.charAt(0)}`.toUpperCase();
+    } else if (user.first_name) {
+      return user.first_name.charAt(0).toUpperCase();
+    } else if (user.username) {
+      return user.username.charAt(0).toUpperCase();
+    }
+    return 'U';
+  };
+
   return (
-    <Container className="py-4">
-      <h1 className="mb-4">Mi Perfil</h1>
+    <Box p={3}>
+      <Typography variant="h4" gutterBottom component="h1">
+        Mi Perfil
+      </Typography>
       
-      <Row>
-        <Col md={3} className="mb-4">
-          <Card>
-            <Card.Body>
-              <Nav variant="pills" className="flex-column">
-                <Nav.Item>
-                  <Nav.Link eventKey="profile" active>Información Personal</Nav.Link>
-                </Nav.Item>
-                <Nav.Item>
-                  <Nav.Link eventKey="address" disabled>Direcciones</Nav.Link>
-                </Nav.Item>
-                <Nav.Item>
-                  <Nav.Link eventKey="orders" disabled>Mis Pedidos</Nav.Link>
-                </Nav.Item>
-                <Nav.Item>
-                  <Nav.Link eventKey="password" href="/change-password?voluntary=true">Cambiar Contraseña</Nav.Link>
-                </Nav.Item>
-              </Nav>
-            </Card.Body>
-          </Card>
-        </Col>
-        
-        <Col md={9}>
-          <Card>
-            <Card.Header as="h5">Información Personal</Card.Header>
-            <Card.Body>
-              {successMessage && (
-                <Alert variant="success" className="mb-4">
-                  {successMessage}
-                </Alert>
-              )}
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          {error}
+        </Alert>
+      )}
+      
+      {success && (
+        <Alert severity="success" sx={{ mb: 3 }}>
+          Perfil actualizado correctamente
+        </Alert>
+      )}
+      
+      <Paper elevation={2} sx={{ p: 3 }}>
+        <form onSubmit={handleSubmit}>
+          <Grid container spacing={3}>
+            {/* Avatar y datos de usuario */}
+            <Grid item xs={12} md={4} sx={{ textAlign: 'center' }}>
+              <Avatar 
+                sx={{ 
+                  width: 100, 
+                  height: 100, 
+                  bgcolor: 'primary.main',
+                  fontSize: 40,
+                  margin: '0 auto 16px'
+                }}
+              >
+                {getInitials()}
+              </Avatar>
               
-              {error && (
-                <Alert variant="danger" className="mb-4">
-                  {error}
-                </Alert>
-              )}
+              <Typography variant="h6" gutterBottom>
+                {user.username}
+              </Typography>
               
-              <Form noValidate validated={validated} onSubmit={handleSubmit}>
-                <Row>
-                  <Col md={6}>
-                    <Form.Group className="mb-3" controlId="formFirstName">
-                      <Form.Label>Nombre</Form.Label>
-                      <Form.Control
-                        type="text"
-                        name="first_name"
-                        value={profileData.first_name}
-                        onChange={handleChange}
-                        placeholder="Ingresa tu nombre"
-                      />
-                    </Form.Group>
-                  </Col>
-                  
-                  <Col md={6}>
-                    <Form.Group className="mb-3" controlId="formLastName">
-                      <Form.Label>Apellido</Form.Label>
-                      <Form.Control
-                        type="text"
-                        name="last_name"
-                        value={profileData.last_name}
-                        onChange={handleChange}
-                        placeholder="Ingresa tu apellido"
-                      />
-                    </Form.Group>
-                  </Col>
-                </Row>
-                
-                <Form.Group className="mb-3" controlId="formEmail">
-                  <Form.Label>Correo electrónico</Form.Label>
-                  <Form.Control
-                    type="email"
-                    name="email"
-                    value={profileData.email}
-                    onChange={handleChange}
-                    placeholder="Ingresa tu correo electrónico"
-                    required
-                    disabled
+              <Typography variant="body2" color="textSecondary" paragraph>
+                {user.email}
+              </Typography>
+              
+              <Typography 
+                variant="body2" 
+                color="textSecondary"
+                sx={{ 
+                  display: 'inline-block',
+                  py: 0.5,
+                  px: 1.5,
+                  borderRadius: 1,
+                  bgcolor: 'action.selected'
+                }}
+              >
+                {user.role === 'admin' ? 'Administrador' : 
+                 user.role === 'vendor' ? 'Vendedor' : 
+                 user.role === 'warehouse' ? 'Bodeguero' : 
+                 user.role === 'accountant' ? 'Contador' : 
+                 'Cliente'}
+              </Typography>
+              
+              {!isEditing && (
+                <Button 
+                  variant="outlined"
+                  startIcon={<Edit />}
+                  sx={{ mt: 2 }}
+                  onClick={() => setIsEditing(true)}
+                >
+                  Editar perfil
+                </Button>
+              )}
+            </Grid>
+            
+            {/* Formulario de perfil */}
+            <Grid item xs={12} md={8}>
+              <Typography variant="h6" gutterBottom>
+                Información Personal
+              </Typography>
+              
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="Nombre"
+                    name="first_name"
+                    value={formData.first_name}
+                    onChange={handleInputChange}
+                    disabled={!isEditing}
+                    margin="normal"
                   />
-                  <Form.Text className="text-muted">
-                    El correo electrónico no se puede cambiar.
-                  </Form.Text>
-                </Form.Group>
-                
-                <Form.Group className="mb-3" controlId="formPhone">
-                  <Form.Label>Teléfono</Form.Label>
-                  <Form.Control
-                    type="tel"
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="Apellido"
+                    name="last_name"
+                    value={formData.last_name}
+                    onChange={handleInputChange}
+                    disabled={!isEditing}
+                    margin="normal"
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Teléfono"
                     name="phone"
-                    value={profileData.phone}
-                    onChange={handleChange}
-                    placeholder="Ingresa tu número de teléfono"
+                    value={formData.phone}
+                    onChange={handleInputChange}
+                    disabled={!isEditing}
+                    margin="normal"
                   />
-                </Form.Group>
-                
-                <Form.Group className="mb-3" controlId="formAddress">
-                  <Form.Label>Dirección</Form.Label>
-                  <Form.Control
-                    as="textarea"
-                    rows={3}
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Dirección"
                     name="address"
-                    value={profileData.address}
-                    onChange={handleChange}
-                    placeholder="Ingresa tu dirección"
+                    value={formData.address}
+                    onChange={handleInputChange}
+                    disabled={!isEditing}
+                    margin="normal"
+                    multiline
+                    rows={3}
                   />
-                </Form.Group>
-                
-                <div className="d-flex justify-content-end">
-                  <Button
-                    variant="primary"
-                    type="submit"
-                    disabled={isLoading}
+                </Grid>
+              </Grid>
+              
+              {isEditing && (
+                <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
+                  <Button 
+                    variant="outlined"
+                    onClick={() => {
+                      setIsEditing(false);
+                      setFormData({
+                        first_name: user.first_name || '',
+                        last_name: user.last_name || '',
+                        phone: user.phone || '',
+                        address: user.address || ''
+                      });
+                    }}
+                    sx={{ mr: 2 }}
                   >
-                    {isLoading ? (
-                      <>
-                        <Spinner
-                          as="span"
-                          animation="border"
-                          size="sm"
-                          role="status"
-                          aria-hidden="true"
-                          className="me-2"
-                        />
-                        Guardando...
-                      </>
-                    ) : (
-                      'Guardar cambios'
-                    )}
+                    Cancelar
                   </Button>
-                </div>
-              </Form>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
-    </Container>
+                  <Button 
+                    type="submit"
+                    variant="contained" 
+                    color="primary"
+                    startIcon={<Save />}
+                    disabled={loading}
+                  >
+                    Guardar Cambios
+                  </Button>
+                </Box>
+              )}
+            </Grid>
+          </Grid>
+        </form>
+      </Paper>
+    </Box>
   );
 };
 

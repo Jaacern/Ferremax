@@ -1,22 +1,32 @@
+/**
+ * Configuración del store de Redux
+ */
 import { configureStore } from '@reduxjs/toolkit';
-import authReducer from './auth.slice';
-import productReducer from './product.slice';
-import cartReducer from './cart.slice';
 
-export const store = configureStore({
+// Importar reducers
+import authReducer from './auth.slice';
+import cartReducer from './cart.slice';
+import productReducer from './product.slice';
+import orderReducer from './order.slice';
+import stockReducer from './stock.slice';
+
+// Configurar store
+const store = configureStore({
   reducer: {
     auth: authReducer,
-    product: productReducer,
-    cart: cartReducer
+    cart: cartReducer,
+    products: productReducer,
+    orders: orderReducer,
+    stock: stockReducer
   },
-  // Middleware para manejar serialización de datos no serializables si es necesario
+  // Middleware personalizado si es necesario
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
       serializableCheck: {
-        // Ignorar ciertas acciones o paths si es necesario
-        ignoredActions: ['persist/PERSIST'],
-      },
-    }),
+        // Ignorar acciones específicas si es necesario
+        // ignoredActions: ['some/action']
+      }
+    })
 });
 
 export default store;

@@ -1,153 +1,148 @@
-/* OrderStatusTracker.css */
 .order-status-tracker {
-  margin: 30px 0;
+  display: flex;
+  justify-content: space-between;
   position: relative;
+  margin: 40px 0;
+  padding: 0 15px;
 }
 
+/* Línea de progreso */
+.order-status-tracker::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background-color: #f0f0f0;
+  transform: translateY(-50%);
+  z-index: 1;
+}
+
+/* Línea de progreso completada */
+.order-status-tracker::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 0;
+  height: 4px;
+  background-color: #0d6efd;
+  transform: translateY(-50%);
+  z-index: 2;
+  transition: width 0.3s ease;
+}
+
+/* Etapas individuales */
 .status-step {
   position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 3;
+  width: 100px;
 }
 
-.status-icon {
-  width: 50px;
-  height: 50px;
+/* Círculo del estado */
+.status-circle {
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
-  background-color: #f8f9fa;
-  border: 2px solid #dee2e6;
+  background-color: #f0f0f0;
+  border: 2px solid #ddd;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0 auto;
-  position: relative;
-  z-index: 2;
+  margin-bottom: 10px;
   transition: all 0.3s ease;
 }
 
-.status-icon i {
-  font-size: 1.5rem;
-  color: #6c757d;
-  transition: all 0.3s ease;
-}
-
-/* Línea conectora entre pasos */
-.status-line {
-  position: absolute;
-  top: 25px;
-  right: -50%;
-  width: 100%;
-  height: 3px;
-  background-color: #dee2e6;
-  z-index: 1;
-  transition: all 0.3s ease;
-}
-
-/* Estados del paso */
-.status-icon.completed {
-  background-color: #28a745;
-  border-color: #28a745;
-}
-
-.status-icon.completed i {
-  color: white;
-}
-
-.status-line.completed {
-  background-color: #28a745;
-}
-
-.status-icon.current {
-  background-color: #007bff;
-  border-color: #007bff;
-  box-shadow: 0 0 0 5px rgba(0, 123, 255, 0.2);
-}
-
-.status-icon.current i {
-  color: white;
-}
-
-.status-icon.pending {
-  background-color: #f8f9fa;
-  border-color: #dee2e6;
-}
-
-.status-icon.pending i {
-  color: #adb5bd;
-}
-
-/* Información del estado */
-.status-info {
-  margin-top: 10px;
+/* Texto del estado */
+.status-text {
+  font-size: 12px;
+  font-weight: 500;
   text-align: center;
+  color: #666;
+  transition: all 0.3s ease;
 }
 
-.status-label {
+/* Estado completado */
+.status-step.completed .status-circle {
+  background-color: #0d6efd;
+  border-color: #0d6efd;
+  color: white;
+}
+
+.status-step.completed .status-text {
+  color: #0d6efd;
   font-weight: 600;
-  font-size: 0.9rem;
-  margin-bottom: 2px;
 }
 
-.status-date {
-  font-size: 0.8rem;
-  color: #6c757d;
+/* Estado activo */
+.status-step.active .status-circle {
+  background-color: #0d6efd;
+  border-color: #0d6efd;
+  color: white;
+  transform: scale(1.1);
+  box-shadow: 0 0 8px rgba(13, 110, 253, 0.5);
 }
 
-/* Estados especiales (rechazado/cancelado) */
-.order-status-special {
-  display: flex;
-  align-items: center;
-  padding: 15px;
-  border-radius: 8px;
-  margin: 20px 0;
+.status-step.active .status-text {
+  color: #0d6efd;
+  font-weight: 600;
 }
 
-.order-status-special i {
-  font-size: 2rem;
-  margin-right: 15px;
+/* Estado rechazado o cancelado */
+.status-step.rejected .status-circle,
+.status-step.cancelled .status-circle {
+  background-color: #dc3545;
+  border-color: #dc3545;
+  color: white;
 }
 
-.order-status-special .status-text {
-  flex-grow: 1;
-}
-
-.order-status-special.rejected {
-  background-color: rgba(220, 53, 69, 0.1);
-  border: 1px solid rgba(220, 53, 69, 0.2);
-}
-
-.order-status-special.rejected i {
+.status-step.rejected .status-text,
+.status-step.cancelled .status-text {
   color: #dc3545;
-}
-
-.order-status-special.cancelled {
-  background-color: rgba(108, 117, 125, 0.1);
-  border: 1px solid rgba(108, 117, 125, 0.2);
-}
-
-.order-status-special.cancelled i {
-  color: #6c757d;
+  font-weight: 600;
 }
 
 /* Responsive */
 @media (max-width: 768px) {
-  .status-line {
-    right: -25%;
-    width: 50%;
+  .order-status-tracker {
+    flex-direction: column;
+    align-items: flex-start;
+    margin-left: 20px;
+    height: auto;
   }
-
-  .status-icon {
-    width: 40px;
-    height: 40px;
+  
+  .order-status-tracker::before {
+    width: 4px;
+    height: 100%;
+    left: 15px;
+    top: 0;
+    transform: none;
   }
-
-  .status-icon i {
-    font-size: 1.2rem;
+  
+  .order-status-tracker::after {
+    width: 4px !important;
+    height: var(--progress-height);
+    left: 15px;
+    top: 0;
+    transform: none;
   }
-
-  .status-label {
-    font-size: 0.8rem;
+  
+  .status-step {
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: 20px;
+    width: 100%;
   }
-
-  .status-date {
-    font-size: 0.7rem;
+  
+  .status-circle {
+    margin-bottom: 0;
+    margin-right: 15px;
+  }
+  
+  .status-text {
+    text-align: left;
   }
 }

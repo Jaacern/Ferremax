@@ -1,494 +1,449 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Row, Col, Card, Button, Form, Modal, Alert, Spinner } from 'react-bootstrap';
 import { useSelector } from 'react-redux';
-import { selectCurrentUser } from '../../store/auth.slice';
+import { 
+  Box, Typography, Paper, Grid, Button, TextField,
+  List, ListItem, ListItemText, IconButton, Divider,
+  Dialog, DialogTitle, DialogContent, DialogActions,
+  Alert
+} from '@mui/material';
+import { 
+  Add, Edit, Delete, Home, LocationOn
+} from '@mui/icons-material';
 import api from '../../services/api';
 
+// Nota: Esta página es hipotética ya que no vemos una API específica para
+// gestionar múltiples direcciones en el backend proporcionado.
+// Normalmente, sería parte de un módulo más completo de gestión de perfil.
+
 const Addresses = () => {
-  const currentUser = useSelector(selectCurrentUser);
-  
+  const { user } = useSelector(state => state.auth);
   const [addresses, setAddresses] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
-  // Estado para el modal de nueva dirección
-  const [showModal, setShowModal] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [validated, setValidated] = useState(false);
-  const [selectedAddress, setSelectedAddress] = useState(null);
-  
-  // Estado para el formulario de dirección
-  const [addressForm, setAddressForm] = useState({
-    alias: '',
-    recipient_name: '',
+  // Estado para el diálogo de dirección
+  const [openDialog, setOpenDialog] = useState(false);
+  const [currentAddress, setCurrentAddress] = useState(null);
+  const [formData, setFormData] = useState({
+    address_name: '',
     street: '',
     number: '',
     apartment: '',
     city: '',
     region: '',
-    zip_code: '',
-    phone: '',
+    postal_code: '',
     is_default: false
   });
-  
-  // Cargar direcciones del usuario
+
   useEffect(() => {
-    const fetchAddresses = async () => {
-      try {
-        setIsLoading(true);
-        const response = await api.get('/user/addresses');
-        setAddresses(response.data.addresses || []);
-      } catch (err) {
-        console.error('Error al cargar direcciones:', err);
-        setError('No se pudieron cargar tus direcciones. Por favor, intenta de nuevo más tarde.');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    if (currentUser) {
-      fetchAddresses();
-    }
-  }, [currentUser]);
-  
-  // Abrir modal para nueva dirección
-  const handleAddAddress = () => {
-    setSelectedAddress(null);
-    setAddressForm({
-      alias: '',
-      recipient_name: currentUser?.first_name + ' ' + currentUser?.last_name || '',
-      street: '',
-      number: '',
-      apartment: '',
-      city: '',
-      region: '',
-      zip_code: '',
-      phone: currentUser?.phone || '',
-      is_default: addresses.length === 0 // Si es la primera dirección, marcarla como predeterminada
-    });
-    setValidated(false);
-    setShowModal(true);
-  };
-  
-  // Abrir modal para editar dirección
-  const handleEditAddress = (address) => {
-    setSelectedAddress(address);
-    setAddressForm({
-      alias: address.alias || '',
-      recipient_name: address.recipient_name || '',
-      street: address.street || '',
-      number: address.number || '',
-      apartment: address.apartment || '',
-      city: address.city || '',
-      region: address.region || '',
-      zip_code: address.zip_code || '',
-      phone: address.phone || '',
-      is_default: address.is_default || false
-    });
-    setValidated(false);
-    setShowModal(true);
-  };
-  
-  // Manejar cambios en el formulario
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setAddressForm(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
-  };
-  
-  // Manejar envío del formulario
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const form = e.currentTarget;
-    
-    if (form.checkValidity() === false) {
-      e.stopPropagation();
-      setValidated(true);
-      return;
-    }
-    
-    setIsSubmitting(true);
-    
-    try {
-      if (selectedAddress) {
-        // Actualizar dirección existente
-        const response = await api.put(`/user/addresses/${selectedAddress.id}`, addressForm);
-        
-        // Actualizar lista de direcciones
-        setAddresses(prev => 
-          prev.map(addr => 
-            addr.id === selectedAddress.id ? response.data.address : addr
-          )
-        );
-      } else {
-        // Crear nueva dirección
-        const response = await api.post('/user/addresses', addressForm);
-        
-        // Añadir a la lista de direcciones
-        setAddresses(prev => [...prev, response.data.address]);
-      }
+    if (user) {
+      // Aquí se haría una llamada a la API para obtener las direcciones del usuario
+      // Como es hipotético, usaremos datos de ejemplo
       
-      // Cerrar modal
-      setShowModal(false);
-    } catch (err) {
-      console.error('Error al guardar dirección:', err);
-      setError('No se pudo guardar la dirección. Por favor, intenta de nuevo más tarde.');
-    } finally {
-      setIsSubmitting(false);
+      // Tiempo simulado para cargar
+      setTimeout(() => {
+        const mockAddresses = [
+          {
+            id: 1,
+            address_name: 'Casa',
+            street: 'Av. Libertador B. O\'Higgins',
+            number: '1111',
+            apartment: '',
+            city: 'Santiago',
+            region: 'Metropolitana',
+            postal_code: '8320000',
+            is_default: true
+          },
+          {
+            id: 2,
+            address_name: 'Trabajo',
+            street: 'Av. Providencia',
+            number: '2222',
+            apartment: 'Oficina 505',
+            city: 'Providencia',
+            region: 'Metropolitana',
+            postal_code: '7500000',
+            is_default: false
+          }
+        ];
+        
+        setAddresses(mockAddresses);
+        setLoading(false);
+      }, 1000);
     }
-  };
+  }, [user]);
+
+  if (!user) {
+    return (
+      <Box p={3}>
+        <Alert severity="error">
+          Debe iniciar sesión para acceder a esta página
+        </Alert>
+      </Box>
+    );
+  }
   
-  // Eliminar dirección
-  const handleDeleteAddress = async (address) => {
-    if (!window.confirm('¿Estás seguro de que deseas eliminar esta dirección?')) {
-      return;
-    }
-    
-    try {
-      await api.delete(`/user/addresses/${address.id}`);
-      
-      // Actualizar lista de direcciones
-      setAddresses(prev => prev.filter(addr => addr.id !== address.id));
-    } catch (err) {
-      console.error('Error al eliminar dirección:', err);
-      setError('No se pudo eliminar la dirección. Por favor, intenta de nuevo más tarde.');
-    }
-  };
-  
-  // Establecer dirección como predeterminada
-  const handleSetDefault = async (address) => {
-    try {
-      const response = await api.put(`/user/addresses/${address.id}/default`, {
-        is_default: true
+  const handleOpenDialog = (address = null) => {
+    if (address) {
+      // Editar dirección existente
+      setCurrentAddress(address);
+      setFormData({
+        address_name: address.address_name,
+        street: address.street,
+        number: address.number,
+        apartment: address.apartment || '',
+        city: address.city,
+        region: address.region,
+        postal_code: address.postal_code,
+        is_default: address.is_default
       });
-      
-      // Actualizar lista de direcciones
-      setAddresses(prev => 
-        prev.map(addr => ({
-          ...addr,
-          is_default: addr.id === address.id
-        }))
-      );
-    } catch (err) {
-      console.error('Error al actualizar dirección predeterminada:', err);
-      setError('No se pudo actualizar la dirección predeterminada. Por favor, intenta de nuevo más tarde.');
+    } else {
+      // Nueva dirección
+      setCurrentAddress(null);
+      setFormData({
+        address_name: '',
+        street: '',
+        number: '',
+        apartment: '',
+        city: '',
+        region: '',
+        postal_code: '',
+        is_default: addresses.length === 0 // Primera dirección como predeterminada
+      });
     }
+    
+    setOpenDialog(true);
   };
   
+  const handleCloseDialog = () => {
+    setOpenDialog(false);
+    setCurrentAddress(null);
+  };
+  
+  const handleInputChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setFormData({
+      ...formData,
+      [name]: type === 'checkbox' ? checked : value
+    });
+  };
+  
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    
+    // Aquí se enviaría a la API para guardar/actualizar
+    // Como es hipotético, solo actualizaremos el estado local
+    
+    if (currentAddress) {
+      // Actualizar dirección existente
+      const updatedAddresses = addresses.map(addr => 
+        addr.id === currentAddress.id 
+          ? { ...addr, ...formData }
+          : formData.is_default && addr.is_default 
+            ? { ...addr, is_default: false } 
+            : addr
+      );
+      
+      setAddresses(updatedAddresses);
+    } else {
+      // Nueva dirección
+      const newAddress = {
+        id: Date.now(), // ID temporal
+        ...formData
+      };
+      
+      // Si la nueva dirección es predeterminada, actualizar las demás
+      const updatedAddresses = formData.is_default 
+        ? addresses.map(addr => ({ ...addr, is_default: false }))
+        : [...addresses];
+      
+      setAddresses([...updatedAddresses, newAddress]);
+    }
+    
+    handleCloseDialog();
+  };
+  
+  const handleDelete = (addressId) => {
+    if (!window.confirm('¿Está seguro que desea eliminar esta dirección?')) {
+      return;
+    }
+    
+    // Aquí se enviaría a la API para eliminar
+    // Como es hipotético, solo actualizaremos el estado local
+    const filteredAddresses = addresses.filter(addr => addr.id !== addressId);
+    
+    // Si eliminamos la dirección predeterminada, hacer predeterminada la primera
+    if (addresses.find(addr => addr.id === addressId)?.is_default && filteredAddresses.length > 0) {
+      filteredAddresses[0].is_default = true;
+    }
+    
+    setAddresses(filteredAddresses);
+  };
+  
+  const handleSetDefault = (addressId) => {
+    // Aquí se enviaría a la API para actualizar
+    // Como es hipotético, solo actualizaremos el estado local
+    const updatedAddresses = addresses.map(addr => ({
+      ...addr,
+      is_default: addr.id === addressId
+    }));
+    
+    setAddresses(updatedAddresses);
+  };
+
   return (
-    <Container className="py-4">
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <h1 className="mb-0">Mis Direcciones</h1>
-        <Button variant="primary" onClick={handleAddAddress}>
-          <i className="bi bi-plus-lg me-1"></i> Añadir dirección
-        </Button>
-      </div>
+    <Box p={3}>
+      <Typography variant="h4" gutterBottom component="h1">
+        Mis Direcciones
+      </Typography>
       
       {error && (
-        <Alert variant="danger" className="mb-4" dismissible onClose={() => setError(null)}>
+        <Alert severity="error" sx={{ mb: 3 }}>
           {error}
         </Alert>
       )}
       
-      {isLoading ? (
-        <div className="text-center py-5">
-          <Spinner animation="border" role="status" variant="primary">
-            <span className="visually-hidden">Cargando direcciones...</span>
-          </Spinner>
-          <p className="mt-3">Cargando tus direcciones...</p>
-        </div>
+      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'flex-end' }}>
+        <Button
+          variant="contained"
+          color="primary"
+          startIcon={<Add />}
+          onClick={() => handleOpenDialog()}
+        >
+          Agregar Dirección
+        </Button>
+      </Box>
+      
+      {loading ? (
+        <Paper elevation={2} sx={{ p: 3, textAlign: 'center' }}>
+          <Typography>Cargando direcciones...</Typography>
+        </Paper>
       ) : addresses.length === 0 ? (
-        <Card>
-          <Card.Body className="text-center py-5">
-            <h4>No tienes direcciones guardadas</h4>
-            <p className="text-muted mb-4">
-              Añade una dirección para facilitar tus compras.
-            </p>
-            <Button
-              variant="primary"
-              onClick={handleAddAddress}
-            >
-              Añadir mi primera dirección
-            </Button>
-          </Card.Body>
-        </Card>
+        <Paper elevation={2} sx={{ p: 3, textAlign: 'center' }}>
+          <Typography variant="h6" gutterBottom>
+            No tienes direcciones guardadas
+          </Typography>
+          <Typography variant="body2" paragraph>
+            Agrega tu primera dirección para agilizar tus compras.
+          </Typography>
+          <Button 
+            variant="contained" 
+            color="primary"
+            startIcon={<Add />}
+            onClick={() => handleOpenDialog()}
+          >
+            Agregar Dirección
+          </Button>
+        </Paper>
       ) : (
-        <Row>
-          {addresses.map(address => (
-            <Col key={address.id} lg={6} className="mb-4">
-              <Card className={address.is_default ? 'border-primary' : ''}>
-                {address.is_default && (
-                  <div className="position-absolute top-0 end-0 mt-2 me-2">
-                    <Badge bg="primary">Predeterminada</Badge>
-                  </div>
-                )}
-                
-                <Card.Body>
-                  <h5 className="mb-3">{address.alias || 'Dirección'}</h5>
-                  
-                  <p className="mb-1">
-                    <strong>Destinatario:</strong> {address.recipient_name}
-                  </p>
-                  <p className="mb-1">
-                    <strong>Dirección:</strong> {address.street} {address.number}
-                    {address.apartment && `, ${address.apartment}`}
-                  </p>
-                  <p className="mb-1">
-                    <strong>Ciudad:</strong> {address.city}
-                  </p>
-                  <p className="mb-1">
-                    <strong>Región:</strong> {address.region}
-                  </p>
-                  <p className="mb-1">
-                    <strong>Código postal:</strong> {address.zip_code}
-                  </p>
-                  <p className="mb-3">
-                    <strong>Teléfono:</strong> {address.phone}
-                  </p>
-                  
-                  <div className="d-flex justify-content-end">
-                    {!address.is_default && (
-                      <Button
-                        variant="outline-primary"
-                        size="sm"
-                        className="me-2"
-                        onClick={() => handleSetDefault(address)}
-                      >
-                        Establecer como predeterminada
-                      </Button>
+        <Grid container spacing={3}>
+          {addresses.map((address) => (
+            <Grid item xs={12} md={6} key={address.id}>
+              <Paper 
+                elevation={2} 
+                sx={{ 
+                  p: 2, 
+                  height: '100%',
+                  border: address.is_default ? '2px solid #1976d2' : '1px solid #e0e0e0'
+                }}
+              >
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                  <Typography variant="h6" color={address.is_default ? 'primary' : 'inherit'}>
+                    {address.is_default ? (
+                      <Home color="primary" sx={{ mr: 1, verticalAlign: 'middle' }} />
+                    ) : (
+                      <LocationOn sx={{ mr: 1, verticalAlign: 'middle' }} />
                     )}
-                    
-                    <Button
-                      variant="outline-secondary"
-                      size="sm"
-                      className="me-2"
-                      onClick={() => handleEditAddress(address)}
+                    {address.address_name}
+                    {address.is_default && (
+                      <Typography 
+                        variant="caption" 
+                        color="primary"
+                        sx={{ 
+                          ml: 1,
+                          border: '1px solid',
+                          borderRadius: 1,
+                          p: 0.5
+                        }}
+                      >
+                        Predeterminada
+                      </Typography>
+                    )}
+                  </Typography>
+                  
+                  <Box>
+                    <IconButton 
+                      size="small" 
+                      color="primary"
+                      onClick={() => handleOpenDialog(address)}
+                      title="Editar"
                     >
-                      Editar
-                    </Button>
-                    
-                    <Button
-                      variant="outline-danger"
-                      size="sm"
-                      onClick={() => handleDeleteAddress(address)}
-                      disabled={address.is_default}
+                      <Edit />
+                    </IconButton>
+                    <IconButton 
+                      size="small" 
+                      color="error"
+                      onClick={() => handleDelete(address.id)}
+                      title="Eliminar"
+                      disabled={address.is_default && addresses.length > 1}
                     >
-                      Eliminar
-                    </Button>
-                  </div>
-                </Card.Body>
-              </Card>
-            </Col>
+                      <Delete />
+                    </IconButton>
+                  </Box>
+                </Box>
+                
+                <Divider sx={{ mb: 2 }} />
+                
+                <Typography variant="body2">
+                  {address.street} {address.number}
+                  {address.apartment && `, ${address.apartment}`}
+                </Typography>
+                <Typography variant="body2">
+                  {address.city}, {address.region}
+                </Typography>
+                <Typography variant="body2">
+                  CP: {address.postal_code}
+                </Typography>
+                
+                {!address.is_default && (
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    color="primary"
+                    sx={{ mt: 2 }}
+                    onClick={() => handleSetDefault(address.id)}
+                  >
+                    Establecer como predeterminada
+                  </Button>
+                )}
+              </Paper>
+            </Grid>
           ))}
-        </Row>
+        </Grid>
       )}
       
-      {/* Modal para añadir/editar dirección */}
-      <Modal show={showModal} onHide={() => setShowModal(false)} size="lg">
-        <Modal.Header closeButton>
-          <Modal.Title>
-            {selectedAddress ? 'Editar dirección' : 'Añadir nueva dirección'}
-          </Modal.Title>
-        </Modal.Header>
+      {/* Diálogo para agregar/editar dirección */}
+      <Dialog 
+        open={openDialog} 
+        onClose={handleCloseDialog}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          {currentAddress ? 'Editar Dirección' : 'Agregar Nueva Dirección'}
+        </DialogTitle>
         
-        <Modal.Body>
-          <Form noValidate validated={validated} onSubmit={handleSubmit}>
-            <Row>
-              <Col md={6}>
-                <Form.Group className="mb-3" controlId="formAlias">
-                  <Form.Label>Alias (opcional)</Form.Label>
-                  <Form.Control
-                    type="text"
-                    name="alias"
-                    placeholder="ej. Casa, Trabajo"
-                    value={addressForm.alias}
-                    onChange={handleChange}
-                  />
-                  <Form.Text className="text-muted">
-                    Un nombre para identificar esta dirección.
-                  </Form.Text>
-                </Form.Group>
-              </Col>
+        <DialogContent>
+          <form id="address-form" onSubmit={handleSubmit}>
+            <Grid container spacing={2} sx={{ mt: 1 }}>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Nombre de la dirección"
+                  name="address_name"
+                  value={formData.address_name}
+                  onChange={handleInputChange}
+                  required
+                  placeholder="Ej: Casa, Trabajo, etc."
+                />
+              </Grid>
               
-              <Col md={6}>
-                <Form.Group className="mb-3" controlId="formRecipientName">
-                  <Form.Label>Nombre del destinatario</Form.Label>
-                  <Form.Control
-                    type="text"
-                    name="recipient_name"
-                    placeholder="Nombre completo"
-                    value={addressForm.recipient_name}
-                    onChange={handleChange}
-                    required
-                  />
-                  <Form.Control.Feedback type="invalid">
-                    Por favor ingresa el nombre del destinatario.
-                  </Form.Control.Feedback>
-                </Form.Group>
-              </Col>
-            </Row>
-            
-            <Row>
-              <Col md={8}>
-                <Form.Group className="mb-3" controlId="formStreet">
-                  <Form.Label>Calle</Form.Label>
-                  <Form.Control
-                    type="text"
-                    name="street"
-                    placeholder="Nombre de la calle"
-                    value={addressForm.street}
-                    onChange={handleChange}
-                    required
-                  />
-                  <Form.Control.Feedback type="invalid">
-                    Por favor ingresa el nombre de la calle.
-                  </Form.Control.Feedback>
-                </Form.Group>
-              </Col>
+              <Grid item xs={12} sm={8}>
+                <TextField
+                  fullWidth
+                  label="Calle"
+                  name="street"
+                  value={formData.street}
+                  onChange={handleInputChange}
+                  required
+                />
+              </Grid>
               
-              <Col md={4}>
-                <Form.Group className="mb-3" controlId="formNumber">
-                  <Form.Label>Número</Form.Label>
-                  <Form.Control
-                    type="text"
-                    name="number"
-                    placeholder="Número"
-                    value={addressForm.number}
-                    onChange={handleChange}
-                    required
-                  />
-                  <Form.Control.Feedback type="invalid">
-                    Por favor ingresa el número.
-                  </Form.Control.Feedback>
-                </Form.Group>
-              </Col>
-            </Row>
-            
-            <Form.Group className="mb-3" controlId="formApartment">
-              <Form.Label>Departamento/Casa (opcional)</Form.Label>
-              <Form.Control
-                type="text"
-                name="apartment"
-                placeholder="ej. Apto 5B, Casa 3"
-                value={addressForm.apartment}
-                onChange={handleChange}
-              />
-            </Form.Group>
-            
-            <Row>
-              <Col md={6}>
-                <Form.Group className="mb-3" controlId="formCity">
-                  <Form.Label>Ciudad</Form.Label>
-                  <Form.Control
-                    type="text"
-                    name="city"
-                    placeholder="Ciudad"
-                    value={addressForm.city}
-                    onChange={handleChange}
-                    required
-                  />
-                  <Form.Control.Feedback type="invalid">
-                    Por favor ingresa la ciudad.
-                  </Form.Control.Feedback>
-                </Form.Group>
-              </Col>
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  fullWidth
+                  label="Número"
+                  name="number"
+                  value={formData.number}
+                  onChange={handleInputChange}
+                  required
+                />
+              </Grid>
               
-              <Col md={6}>
-                <Form.Group className="mb-3" controlId="formRegion">
-                  <Form.Label>Región</Form.Label>
-                  <Form.Control
-                    type="text"
-                    name="region"
-                    placeholder="Región"
-                    value={addressForm.region}
-                    onChange={handleChange}
-                    required
-                  />
-                  <Form.Control.Feedback type="invalid">
-                    Por favor ingresa la región.
-                  </Form.Control.Feedback>
-                </Form.Group>
-              </Col>
-            </Row>
-            
-            <Row>
-              <Col md={6}>
-                <Form.Group className="mb-3" controlId="formZipCode">
-                  <Form.Label>Código postal</Form.Label>
-                  <Form.Control
-                    type="text"
-                    name="zip_code"
-                    placeholder="Código postal"
-                    value={addressForm.zip_code}
-                    onChange={handleChange}
-                    required
-                  />
-                  <Form.Control.Feedback type="invalid">
-                    Por favor ingresa el código postal.
-                  </Form.Control.Feedback>
-                </Form.Group>
-              </Col>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Departamento/Oficina (opcional)"
+                  name="apartment"
+                  value={formData.apartment}
+                  onChange={handleInputChange}
+                />
+              </Grid>
               
-              <Col md={6}>
-                <Form.Group className="mb-3" controlId="formPhone">
-                  <Form.Label>Teléfono de contacto</Form.Label>
-                  <Form.Control
-                    type="tel"
-                    name="phone"
-                    placeholder="Teléfono"
-                    value={addressForm.phone}
-                    onChange={handleChange}
-                    required
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Ciudad"
+                  name="city"
+                  value={formData.city}
+                  onChange={handleInputChange}
+                  required
+                />
+              </Grid>
+              
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Región"
+                  name="region"
+                  value={formData.region}
+                  onChange={handleInputChange}
+                  required
+                />
+              </Grid>
+              
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Código Postal"
+                  name="postal_code"
+                  value={formData.postal_code}
+                  onChange={handleInputChange}
+                  required
+                />
+              </Grid>
+              
+              <Grid item xs={12}>
+                <label>
+                  <input
+                    type="checkbox"
+                    name="is_default"
+                    checked={formData.is_default}
+                    onChange={handleInputChange}
+                    disabled={addresses.length === 0} // Si es la primera dirección, siempre es predeterminada
                   />
-                  <Form.Control.Feedback type="invalid">
-                    Por favor ingresa un teléfono de contacto.
-                  </Form.Control.Feedback>
-                </Form.Group>
-              </Col>
-            </Row>
-            
-            <Form.Group className="mb-3" controlId="formIsDefault">
-              <Form.Check
-                type="checkbox"
-                name="is_default"
-                label="Establecer como dirección predeterminada"
-                checked={addressForm.is_default}
-                onChange={handleChange}
-              />
-            </Form.Group>
-          </Form>
-        </Modal.Body>
+                  {' '}Establecer como dirección predeterminada
+                </label>
+              </Grid>
+            </Grid>
+          </form>
+        </DialogContent>
         
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowModal(false)}>
+        <DialogActions>
+          <Button onClick={handleCloseDialog}>
             Cancelar
           </Button>
-          <Button
-            variant="primary"
-            onClick={handleSubmit}
-            disabled={isSubmitting}
+          <Button 
+            type="submit"
+            form="address-form"
+            variant="contained" 
+            color="primary"
           >
-            {isSubmitting ? (
-              <>
-                <Spinner
-                  as="span"
-                  animation="border"
-                  size="sm"
-                  role="status"
-                  aria-hidden="true"
-                  className="me-2"
-                />
-                Guardando...
-              </>
-            ) : (
-              'Guardar dirección'
-            )}
+            Guardar
           </Button>
-        </Modal.Footer>
-      </Modal>
-    </Container>
+        </DialogActions>
+      </Dialog>
+    </Box>
   );
 };
 

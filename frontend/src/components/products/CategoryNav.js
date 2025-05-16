@@ -1,142 +1,98 @@
-import React, { useEffect, useState } from 'react';
-import { Nav, Accordion, Button } from 'react-bootstrap';
-import { Link, useLocation } from 'react-router-dom';
+import React, { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import {
-  fetchCategories,
-  selectCategories,
-  selectIsLoading
-} from '../../store/product.slice';
+import { Link } from 'react-router-dom';
+import { fetchCategories } from '../../store/product.slice';
 
-const CategoryNav = ({ vertical = false, showAll = true }) => {
+/**
+ * Componente para navegación por categorías de productos.
+ * 
+ * @param {Object} props - Propiedades del componente
+ * @param {string} props.activeCategory - Categoría actualmente seleccionada
+ * @param {Function} props.onCategorySelect - Función para manejar selección de categoría
+ * @returns {React.ReactNode} - Navegación de categorías
+ */
+const CategoryNav = ({ activeCategory, onCategorySelect }) => {
   const dispatch = useDispatch();
-  const location = useLocation();
-  const categories = useSelector(selectCategories);
-  const isLoading = useSelector(selectIsLoading);
-  const [activeCategory, setActiveCategory] = useState(null);
-
-  // Cargar categorías cuando se monta el componente
+  const categories = useSelector(state => state.products.categories);
+  const loading = useSelector(state => state.products.loading);
+  
+  // Cargar categorías al montar el componente
   useEffect(() => {
     dispatch(fetchCategories());
   }, [dispatch]);
-
-  // Agrupar categorías por subcategorías (simulado)
-  // En una implementación real, esto vendría del backend ya estructurado
-  const subcategories = {
-    'MANUAL_TOOLS': ['Martillos', 'Destornilladores', 'Llaves', 'Alicates'],
-    'POWER_TOOLS': ['Taladros', 'Sierras', 'Lijadoras', 'Fresadoras'],
-    'CONSTRUCTION_MATERIALS': ['Cemento', 'Arena', 'Ladrillos', 'Madera'],
-    'FINISHES': ['Pinturas', 'Barnices', 'Cerámicos', 'Revestimientos'],
-    'SAFETY_EQUIPMENT': ['Cascos', 'Guantes', 'Lentes', 'Arneses']
+  
+  // Íconos para cada categoría
+  const categoryIcons = {
+    'Herramientas Manuales': 'bi-wrench',
+    'Herramientas Eléctricas': 'bi-tools',
+    'Materiales de Construcción': 'bi-bricks',
+    'Acabados': 'bi-palette',
+    'Equipos de Seguridad': 'bi-shield-check',
+    'Tornillos y Anclajes': 'bi-screwdriver',
+    'Fijaciones y Adhesivos': 'bi-bandaid',
+    'Equipos de Medición': 'bi-rulers'
   };
-
-  // Detectar categoría activa a partir de la URL
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const categoryParam = params.get('category');
-    setActiveCategory(categoryParam);
-  }, [location.search]);
-
-  // Si está cargando, mostrar un esqueleto
-  if (isLoading) {
+  
+  // Función para obtener ícono según categoría
+  const getCategoryIcon = (categoryName) => {
+    return categoryIcons[categoryName] || 'bi-box';
+  };
+  
+  // Manejar clic en categoría
+  const handleCategoryClick = (categoryId) => {
+    if (onCategorySelect) {
+      onCategorySelect(categoryId);
+    }
+  };
+  
+  // Si está cargando, mostrar placeholder
+  if (loading && categories.length === 0) {
     return (
-      <div className={`category-nav ${vertical ? 'category-nav-vertical' : ''}`}>
-        {Array(5).fill(0).map((_, index) => (
-          <div key={index} className="skeleton-item my-2" style={{ height: '24px', width: '80%' }}></div>
-        ))}
+      <div className="card mb-4">
+        <div className="card-body">
+          <div className="placeholder-glow">
+            <span className="placeholder col-12"></span>
+            <span className="placeholder col-6"></span>
+            <span className="placeholder col-8"></span>
+            <span className="placeholder col-10"></span>
+          </div>
+        </div>
       </div>
     );
   }
-
-  // Si no hay categorías, mostrar mensaje
-  if (!categories || categories.length === 0) {
-    return (
-      <div className="text-center p-3 bg-light rounded">
-        No hay categorías disponibles
-      </div>
-    );
-  }
-
-  // Renderizar barra de navegación vertical
-  if (vertical) {
-    return (
-      <div className="category-nav-vertical">
-        <h5 className="mb-3">Categorías</h5>
-        
-        {showAll && (
-          <Nav.Link 
-            as={Link} 
-            to="/products" 
-            className={`${!activeCategory ? 'active font-weight-bold' : ''}`}
-            active={!activeCategory}
-          >
-            Todas las categorías
-          </Nav.Link>
-        )}
-        
-        <Accordion defaultActiveKey={activeCategory || ''} alwaysOpen>
-          {categories.map(category => (
-            <Accordion.Item key={category.id} eventKey={category.id}>
-              <Accordion.Header>
-                <Nav.Link 
-                  as={Link} 
-                  to={`/products?category=${category.id}`}
-                  className={`p-0 ${activeCategory === category.id ? 'active font-weight-bold' : ''}`}
-                  onClick={(e) => e.stopPropagation()}
-                  active={activeCategory === category.id}
-                >
-                  {category.name}
-                </Nav.Link>
-              </Accordion.Header>
-              <Accordion.Body className="p-0">
-                <Nav className="flex-column">
-                  {subcategories[category.id]?.map(sub => (
-                    <Nav.Link 
-                      key={sub} 
-                      as={Link} 
-                      to={`/products?category=${category.id}&subcategory=${sub}`}
-                      className="ps-4 py-2"
-                    >
-                      {sub}
-                    </Nav.Link>
-                  ))}
-                </Nav>
-              </Accordion.Body>
-            </Accordion.Item>
-          ))}
-        </Accordion>
-      </div>
-    );
-  }
-
-  // Renderizar barra de navegación horizontal
+  
   return (
-    <div className="category-nav mb-4">
-      <Nav className="justify-content-center category-nav-horizontal">
-        {showAll && (
-          <Nav.Item>
-            <Nav.Link 
-              as={Link} 
-              to="/products"
-              active={!activeCategory}
-            >
-              Todas
-            </Nav.Link>
-          </Nav.Item>
-        )}
-        
-        {categories.map(category => (
-          <Nav.Item key={category.id}>
-            <Nav.Link 
-              as={Link} 
+    <div className="card mb-4">
+      <div className="card-header bg-light">
+        <h5 className="mb-0">Categorías</h5>
+      </div>
+      <div className="card-body p-0">
+        <div className="list-group list-group-flush">
+          <Link 
+            to="/products"
+            className={`list-group-item list-group-item-action d-flex align-items-center ${!activeCategory ? 'active' : ''}`}
+            onClick={() => handleCategoryClick('')}
+          >
+            <i className="bi bi-grid me-3"></i>
+            <span>Todos los Productos</span>
+          </Link>
+          
+          {categories.map(category => (
+            <Link 
+              key={category.id}
               to={`/products?category=${category.id}`}
-              active={activeCategory === category.id}
+              className={`list-group-item list-group-item-action d-flex align-items-center ${activeCategory === category.id ? 'active' : ''}`}
+              onClick={(e) => {
+                e.preventDefault();
+                handleCategoryClick(category.id);
+              }}
             >
-              {category.name}
-            </Nav.Link>
-          </Nav.Item>
-        ))}
-      </Nav>
+              <i className={`${getCategoryIcon(category.name)} me-3`}></i>
+              <span>{category.name}</span>
+            </Link>
+          ))}
+        </div>
+      </div>
     </div>
   );
 };

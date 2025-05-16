@@ -5,15 +5,16 @@ import { useDispatch, useSelector } from 'react-redux';
 import { 
   fetchProducts,
   selectProducts,
-  selectIsLoading
+  selectProductsLoading 
 } from '../store/product.slice';
 
 import ProductCard from '../components/products/ProductCard';
+import '../assets/css/main.css';
 
 const Home = () => {
   const dispatch = useDispatch();
   const products = useSelector(selectProducts);
-  const isLoading = useSelector(selectIsLoading);
+  const isLoading = useSelector(selectProductsLoading );
   
   // Cargar productos destacados al montar el componente
   useEffect(() => {

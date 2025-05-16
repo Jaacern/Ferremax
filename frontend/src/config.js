@@ -1,105 +1,101 @@
 /**
- * Configuración global para la aplicación FERREMAS
+ * Configuración global de la aplicación
  */
 
-// Entorno de ejecución (desarrollo, producción, etc.)
-const NODE_ENV = process.env.NODE_ENV || 'development';
+// URL base de la API
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
-// Configuración basada en entorno
-const config = {
-  // Entorno de desarrollo (localhost)
-  development: {
-    // URL base de la API backend
-    API_URL: 'http://localhost:5000/api',
-    // URL para eventos SSE (Server-Sent Events) - notificaciones en tiempo real
-    SSE_URL: 'http://localhost:5000/stream',
-    // Tiempo de vida del token JWT en milisegundos (24 horas)
-    TOKEN_EXPIRY: 86400000,
-    // Tiempo de espera para peticiones API en milisegundos
-    API_TIMEOUT: 30000,
-    // Intervalo para refrescar datos en tiempo real (milisegundos)
-    REFRESH_INTERVAL: 60000,
-    // Habilitar logs detallados
-    VERBOSE_LOGGING: true
-  },
+// Duración del token en milisegundos (24 horas)
+const TOKEN_DURATION = 24 * 60 * 60 * 1000;
 
-  // Entorno de producción (servidor real)
-  production: {
-    // En producción, usamos rutas relativas para que funcione en cualquier dominio
-    API_URL: '/api',
-    SSE_URL: '/stream',
-    TOKEN_EXPIRY: 86400000,
-    API_TIMEOUT: 30000,
-    REFRESH_INTERVAL: 120000,
-    VERBOSE_LOGGING: false
-  },
-
-  // Entorno de pruebas
-  test: {
-    API_URL: 'http://localhost:5000/api',
-    SSE_URL: 'http://localhost:5000/stream',
-    TOKEN_EXPIRY: 3600000, // 1 hora para pruebas
-    API_TIMEOUT: 5000,
-    REFRESH_INTERVAL: 30000,
-    VERBOSE_LOGGING: true
-  }
+// Configuración de roles
+const ROLES = {
+  ADMIN: 'admin',
+  VENDOR: 'vendor',
+  WAREHOUSE: 'warehouse',
+  ACCOUNTANT: 'accountant',
+  CUSTOMER: 'customer'
 };
 
-// Exportar configuración según el entorno actual
-export default {
-  // Valores por defecto y comunes
-  APP_NAME: 'FERREMAS',
-  APP_VERSION: '1.0.0',
-  DEFAULT_LANGUAGE: 'es-CL',
-  DEFAULT_CURRENCY: 'CLP',
-  DEFAULT_CURRENCY_SYMBOL: '$',
+// Estados de pedidos
+const ORDER_STATUS = {
+  PENDING: 'pendiente',
+  APPROVED: 'aprobado',
+  REJECTED: 'rechazado',
+  PREPARING: 'en preparación',
+  READY: 'listo para entrega',
+  SHIPPED: 'enviado',
+  DELIVERED: 'entregado',
+  CANCELLED: 'cancelado'
+};
 
-  // Categorías de productos (para filtrado y navegación)
-  PRODUCT_CATEGORIES: {
-    MANUAL_TOOLS: 'Herramientas Manuales',
-    POWER_TOOLS: 'Herramientas Eléctricas',
-    CONSTRUCTION_MATERIALS: 'Materiales de Construcción',
-    FINISHES: 'Acabados',
-    SAFETY_EQUIPMENT: 'Equipos de Seguridad',
-    FASTENERS: 'Tornillos y Anclajes',
-    ADHESIVES: 'Fijaciones y Adhesivos',
-    MEASURING_TOOLS: 'Equipos de Medición'
-  },
+// Métodos de entrega
+const DELIVERY_METHODS = {
+  PICKUP: 'retiro en tienda',
+  DELIVERY: 'despacho a domicilio'
+};
 
-  // Estados de pedidos
-  ORDER_STATUS: {
-    PENDING: 'pendiente',
-    APPROVED: 'aprobado',
-    REJECTED: 'rechazado',
-    PREPARING: 'en preparación',
-    READY: 'listo para entrega',
-    SHIPPED: 'enviado',
-    DELIVERED: 'entregado',
-    CANCELLED: 'cancelado'
-  },
+// Métodos de pago
+const PAYMENT_METHODS = {
+  CREDIT_CARD: 'tarjeta de crédito',
+  DEBIT_CARD: 'tarjeta de débito',
+  BANK_TRANSFER: 'transferencia bancaria',
+  CASH: 'efectivo'
+};
 
-  // Roles de usuario
-  USER_ROLES: {
-    ADMIN: 'admin',
-    VENDOR: 'vendor',
-    WAREHOUSE: 'warehouse',
-    ACCOUNTANT: 'accountant',
-    CUSTOMER: 'customer'
-  },
+// Estados de pago
+const PAYMENT_STATUS = {
+  PENDING: 'pendiente',
+  PROCESSING: 'procesando',
+  COMPLETED: 'completado',
+  FAILED: 'fallido',
+  REFUNDED: 'reembolsado',
+  CANCELLED: 'cancelado'
+};
 
-  // Métodos de pago
-  PAYMENT_METHODS: {
-    CREDIT_CARD: 'tarjeta de crédito',
-    DEBIT_CARD: 'tarjeta de débito',
-    BANK_TRANSFER: 'transferencia bancaria'
-  },
+// Categorías de productos
+const PRODUCT_CATEGORIES = {
+  MANUAL_TOOLS: 'Herramientas Manuales',
+  POWER_TOOLS: 'Herramientas Eléctricas',
+  CONSTRUCTION_MATERIALS: 'Materiales de Construcción',
+  FINISHES: 'Acabados',
+  SAFETY_EQUIPMENT: 'Equipos de Seguridad',
+  FASTENERS: 'Tornillos y Anclajes',
+  ADHESIVES: 'Fijaciones y Adhesivos',
+  MEASURING_TOOLS: 'Equipos de Medición'
+};
 
-  // Métodos de entrega
-  DELIVERY_METHODS: {
-    PICKUP: 'retiro en tienda',
-    DELIVERY: 'despacho a domicilio'
-  },
+// Tipos de moneda
+const CURRENCY_TYPES = {
+  CLP: 'CLP',
+  USD: 'USD',
+  EUR: 'EUR',
+  GBP: 'GBP',
+  ARS: 'ARS',
+  BRL: 'BRL',
+  MXN: 'MXN'
+};
 
-  // Merge con la configuración específica del entorno
-  ...config[NODE_ENV]
+// Configuración de notificaciones en tiempo real (SSE)
+const SSE_URL = process.env.REACT_APP_SSE_URL || 'http://localhost:5000/stream';
+
+// Configuración de paginación por defecto
+const DEFAULT_PAGINATION = {
+  page: 1,
+  per_page: 10
+};
+
+// Exportar configuraciones
+export {
+  API_URL,
+  TOKEN_DURATION,
+  ROLES,
+  ORDER_STATUS,
+  DELIVERY_METHODS,
+  PAYMENT_METHODS,
+  PAYMENT_STATUS,
+  PRODUCT_CATEGORIES,
+  CURRENCY_TYPES,
+  SSE_URL,
+  DEFAULT_PAGINATION
 };

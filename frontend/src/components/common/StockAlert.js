@@ -1,101 +1,94 @@
-import React, { useState, useEffect } from 'react';
-import { Toast, ToastContainer, Badge } from 'react-bootstrap';
-import { useSelector } from 'react-redux';
-import { selectUserRole } from '../../store/auth.slice';
+import React, { useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
+import { selectStockNotification, clearStockNotification } from '../../store/stock.slice';
 
+/**
+ * Componente para mostrar alertas de stock en tiempo real.
+ * Se muestra cuando hay notificaciones de stock bajo o agotado.
+ */
 const StockAlert = () => {
-  const [alerts, setAlerts] = useState([]);
-  const [showToasts, setShowToasts] = useState({});
-  const userRole = useSelector(selectUserRole);
+  const dispatch = useDispatch();
+  const notification = useSelector(selectStockNotification);
   
-  // Determinar si el usuario debe recibir alertas según su rol
-  const shouldReceiveAlerts = ['admin', 'warehouse', 'vendor'].includes(userRole);
-  
+  // Cerrar la notificación después de un tiempo
   useEffect(() => {
-    // Solo configurar SSE si el usuario tiene un rol que debe recibir alertas
-    if (!shouldReceiveAlerts) return;
+    let timeoutId;
     
-    // Configurar conexión SSE
-    const eventSource = new EventSource('/stream/stock_alert');
+    if (notification) {
+      timeoutId = setTimeout(() => {
+        dispatch(clearStockNotification());
+      }, 10000); // 10 segundos
+    }
     
-    // Manejar eventos de alerta de stock
-    eventSource.addEventListener('stock_alert', (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        // Generar ID único para la alerta
-        const alertId = `stock-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        
-        // Añadir nueva alerta al inicio del array
-        setAlerts(prevAlerts => [
-          { id: alertId, data, timestamp: new Date() },
-          ...prevAlerts
-        ].slice(0, 10)); // Mantener solo las 10 alertas más recientes
-        
-        // Mostrar toast para esta alerta
-        setShowToasts(prev => ({ ...prev, [alertId]: true }));
-        
-        // Ocultar toast automáticamente después de 8 segundos
-        setTimeout(() => {
-          setShowToasts(prev => ({ ...prev, [alertId]: false }));
-        }, 8000);
-      } catch (error) {
-        console.error('Error al procesar alerta de stock:', error);
-      }
-    });
-    
-    // Manejar errores de conexión
-    eventSource.onerror = (error) => {
-      console.error('Error en la conexión SSE:', error);
-      // Intentar reconectar después de 5 segundos
-      setTimeout(() => {
-        eventSource.close();
-        // La reconexión ocurrirá naturalmente cuando el componente se vuelva a montar
-      }, 5000);
-    };
-    
-    // Limpiar al desmontar
     return () => {
-      eventSource.close();
+      if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [shouldReceiveAlerts]);
+  }, [notification, dispatch]);
   
-  // Si el usuario no debe recibir alertas, no renderizar nada
-  if (!shouldReceiveAlerts) return null;
+  // Si no hay notificación, no mostrar nada
+  if (!notification) return null;
   
-  // Renderizar contenedor de toasts
+  // Determinar estilo según el estado del stock
+  const isOutOfStock = notification.current_stock <= 0;
+  const alertStyle = {
+    position: 'fixed',
+    bottom: '20px',
+    right: '20px',
+    zIndex: 1050,
+    maxWidth: '350px',
+    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)'
+  };
+  
   return (
-    <ToastContainer className="p-3" position="bottom-end">
-      {alerts.map(alert => (
-        <Toast 
-          key={alert.id}
-          show={showToasts[alert.id] || false}
-          onClose={() => setShowToasts(prev => ({ ...prev, [alert.id]: false }))}
-          delay={8000}
-          autohide
-        >
-          <Toast.Header closeButton={true}>
-            <Badge 
-              bg={alert.data.current_stock <= 0 ? 'danger' : 'warning'} 
-              className="me-2"
+    <div 
+      className={`alert ${isOutOfStock ? 'alert-danger' : 'alert-warning'} d-flex align-items-center`} 
+      role="alert"
+      style={alertStyle}
+    >
+      <div className="d-flex w-100 justify-content-between align-items-center">
+        <div>
+          <i className={`bi ${isOutOfStock ? 'bi-exclamation-triangle-fill' : 'bi-exclamation-circle'} me-2`}></i>
+          <strong>{isOutOfStock ? 'Stock Agotado' : 'Stock Bajo'}</strong>
+          <div className="mt-1">
+            <span className="fw-bold">{notification.product_name}</span>
+            <div>
+              <small>
+                <span className="fw-bold">Sucursal:</span> {notification.branch_name}
+              </small>
+            </div>
+            <div>
+              <small>
+                <span className="fw-bold">Stock actual:</span> {notification.current_stock} unidades
+                {!isOutOfStock && notification.min_stock && (
+                  <> (Mínimo: {notification.min_stock})</>
+                )}
+              </small>
+            </div>
+          </div>
+          <div className="mt-2">
+            <Link 
+              to={`/warehouse/stock?product_id=${notification.product_id}`} 
+              className="btn btn-sm btn-outline-dark me-2"
             >
-              {alert.data.current_stock <= 0 ? 'Agotado' : 'Stock bajo'}
-            </Badge>
-            <strong className="me-auto">Alerta de stock</strong>
-            <small className="text-muted">
-              {new Date(alert.timestamp).toLocaleTimeString()}
-            </small>
-          </Toast.Header>
-          <Toast.Body>
-            <p className="mb-1"><strong>{alert.data.product_name}</strong></p>
-            <p className="mb-0">
-              Sucursal: {alert.data.branch_name}<br />
-              Stock actual: {alert.data.current_stock} unidades<br />
-              {alert.data.min_stock && `Stock mínimo: ${alert.data.min_stock} unidades`}
-            </p>
-          </Toast.Body>
-        </Toast>
-      ))}
-    </ToastContainer>
+              Ver Detalle
+            </Link>
+            <button 
+              className="btn btn-sm btn-outline-secondary"
+              onClick={() => dispatch(clearStockNotification())}
+            >
+              Cerrar
+            </button>
+          </div>
+        </div>
+        <button 
+          type="button" 
+          className="btn-close ms-3" 
+          onClick={() => dispatch(clearStockNotification())}
+          aria-label="Close"
+        ></button>
+      </div>
+    </div>
   );
 };
 

@@ -1,425 +1,184 @@
 import React from 'react';
-import { Nav, Accordion } from 'react-bootstrap';
 import { Link, useLocation } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { selectUserRole } from '../../store/auth.slice';
+import { ROLES } from '../../config';
 
+/**
+ * Componente de barra lateral para navegación del sistema.
+ * Se muestra específicamente para cada tipo de usuario.
+ * 
+ * @param {Object} props - Propiedades del componente
+ * @param {boolean} props.isOpen - Indica si la barra lateral está abierta (móvil)
+ * @param {Function} props.toggleSidebar - Función para alternar la barra lateral
+ * @returns {React.ReactNode} - Barra lateral con enlaces según el rol del usuario
+ */
 const Sidebar = ({ isOpen, toggleSidebar }) => {
   const location = useLocation();
   const userRole = useSelector(selectUserRole);
   
   // Determinar si un enlace está activo
   const isActive = (path) => {
-    return location.pathname.startsWith(path);
+    return location.pathname === path || location.pathname.startsWith(`${path}/`);
   };
   
-  // Determinar qué menú mostrar según el rol
-  const renderMenu = () => {
-    switch (userRole) {
-      case 'admin':
-        return renderAdminMenu();
-      case 'vendor':
-        return renderVendorMenu();
-      case 'warehouse':
-        return renderWarehouseMenu();
-      case 'accountant':
-        return renderAccountantMenu();
-      case 'customer':
+  // Configuración de menús según el rol
+  const getMenuItems = () => {
+    switch(userRole) {
+      case ROLES.ADMIN:
+        return [
+          { 
+            title: 'Dashboard', 
+            icon: 'bi-speedometer2', 
+            path: '/admin/dashboard' 
+          },
+          { 
+            title: 'Gestión de Productos', 
+            icon: 'bi-box-seam', 
+            path: '/admin/products' 
+          },
+          { 
+            title: 'Gestión de Pedidos', 
+            icon: 'bi-cart-check', 
+            path: '/admin/orders' 
+          },
+          { 
+            title: 'Gestión de Usuarios', 
+            icon: 'bi-people', 
+            path: '/admin/users' 
+          },
+          { 
+            title: 'Gestión de Sucursales', 
+            icon: 'bi-building', 
+            path: '/admin/branches' 
+          }
+        ];
+        
+      case ROLES.VENDOR:
+        return [
+          { 
+            title: 'Dashboard', 
+            icon: 'bi-speedometer2', 
+            path: '/vendor/dashboard' 
+          },
+          { 
+            title: 'Pedidos por Aprobar', 
+            icon: 'bi-clipboard-check', 
+            path: '/vendor/orders' 
+          },
+          { 
+            title: 'Inventario', 
+            icon: 'bi-box-seam', 
+            path: '/vendor/inventory' 
+          }
+        ];
+        
+      case ROLES.WAREHOUSE:
+        return [
+          { 
+            title: 'Dashboard', 
+            icon: 'bi-speedometer2', 
+            path: '/warehouse/dashboard' 
+          },
+          { 
+            title: 'Pedidos Pendientes', 
+            icon: 'bi-clipboard-check', 
+            path: '/warehouse/orders' 
+          },
+          { 
+            title: 'Gestión de Stock', 
+            icon: 'bi-box-seam', 
+            path: '/warehouse/stock' 
+          }
+        ];
+        
+      case ROLES.ACCOUNTANT:
+        return [
+          { 
+            title: 'Dashboard', 
+            icon: 'bi-speedometer2', 
+            path: '/accountant/dashboard' 
+          },
+          { 
+            title: 'Gestión de Pagos', 
+            icon: 'bi-credit-card', 
+            path: '/accountant/payments' 
+          },
+          { 
+            title: 'Informes de Ventas', 
+            icon: 'bi-graph-up', 
+            path: '/accountant/reports' 
+          }
+        ];
+        
+      case ROLES.CUSTOMER:
+        return [
+          { 
+            title: 'Mi Perfil', 
+            icon: 'bi-person', 
+            path: '/profile' 
+          },
+          { 
+            title: 'Mis Pedidos', 
+            icon: 'bi-box', 
+            path: '/orders' 
+          },
+          { 
+            title: 'Mis Direcciones', 
+            icon: 'bi-geo-alt', 
+            path: '/addresses' 
+          },
+          { 
+            title: 'Cambiar Contraseña', 
+            icon: 'bi-key', 
+            path: '/change-password' 
+          }
+        ];
+        
       default:
-        return renderCustomerMenu();
+        return [];
     }
   };
   
-  // Menú para administradores
-  const renderAdminMenu = () => (
-    <>
-      <Nav.Link 
-        as={Link} 
-        to="/admin" 
-        className={`sidebar-link ${isActive('/admin') && !isActive('/admin/') ? 'active' : ''}`}
-      >
-        <i className="bi bi-speedometer2 me-2"></i>
-        Dashboard
-      </Nav.Link>
-      
-      <Accordion flush className="sidebar-accordion">
-        <Accordion.Item eventKey="0">
-          <Accordion.Header className="sidebar-accordion-header">
-            <i className="bi bi-box-seam me-2"></i>
-            Productos
-          </Accordion.Header>
-          <Accordion.Body className="p-0">
-            <Nav.Link 
-              as={Link} 
-              to="/admin/products" 
-              className={`sidebar-sublink ${isActive('/admin/products') ? 'active' : ''}`}
-            >
-              <i className="bi bi-list-ul me-2"></i>
-              Lista de productos
-            </Nav.Link>
-            <Nav.Link 
-              as={Link} 
-              to="/admin/products/create" 
-              className={`sidebar-sublink ${isActive('/admin/products/create') ? 'active' : ''}`}
-            >
-              <i className="bi bi-plus-lg me-2"></i>
-              Nuevo producto
-            </Nav.Link>
-            <Nav.Link 
-              as={Link} 
-              to="/admin/categories" 
-              className={`sidebar-sublink ${isActive('/admin/categories') ? 'active' : ''}`}
-            >
-              <i className="bi bi-tags me-2"></i>
-              Categorías
-            </Nav.Link>
-          </Accordion.Body>
-        </Accordion.Item>
-        
-        <Accordion.Item eventKey="1">
-          <Accordion.Header className="sidebar-accordion-header">
-            <i className="bi bi-people me-2"></i>
-            Usuarios
-          </Accordion.Header>
-          <Accordion.Body className="p-0">
-            <Nav.Link 
-              as={Link} 
-              to="/admin/users" 
-              className={`sidebar-sublink ${isActive('/admin/users') && !isActive('/admin/users/') ? 'active' : ''}`}
-            >
-              <i className="bi bi-list-ul me-2"></i>
-              Lista de usuarios
-            </Nav.Link>
-            <Nav.Link 
-              as={Link} 
-              to="/admin/users/create" 
-              className={`sidebar-sublink ${isActive('/admin/users/create') ? 'active' : ''}`}
-            >
-              <i className="bi bi-person-plus me-2"></i>
-              Nuevo usuario
-            </Nav.Link>
-          </Accordion.Body>
-        </Accordion.Item>
-        
-        <Accordion.Item eventKey="2">
-          <Accordion.Header className="sidebar-accordion-header">
-            <i className="bi bi-cart me-2"></i>
-            Pedidos
-          </Accordion.Header>
-          <Accordion.Body className="p-0">
-            <Nav.Link 
-              as={Link} 
-              to="/admin/orders" 
-              className={`sidebar-sublink ${isActive('/admin/orders') && !isActive('/admin/orders/') ? 'active' : ''}`}
-            >
-              <i className="bi bi-list-ul me-2"></i>
-              Todos los pedidos
-            </Nav.Link>
-            <Nav.Link 
-              as={Link} 
-              to="/admin/orders/pending" 
-              className={`sidebar-sublink ${isActive('/admin/orders/pending') ? 'active' : ''}`}
-            >
-              <i className="bi bi-hourglass-split me-2"></i>
-              Pendientes
-            </Nav.Link>
-          </Accordion.Body>
-        </Accordion.Item>
-        
-        <Accordion.Item eventKey="3">
-          <Accordion.Header className="sidebar-accordion-header">
-            <i className="bi bi-building me-2"></i>
-            Sucursales
-          </Accordion.Header>
-          <Accordion.Body className="p-0">
-            <Nav.Link 
-              as={Link} 
-              to="/admin/branches" 
-              className={`sidebar-sublink ${isActive('/admin/branches') && !isActive('/admin/branches/') ? 'active' : ''}`}
-            >
-              <i className="bi bi-list-ul me-2"></i>
-              Lista de sucursales
-            </Nav.Link>
-            <Nav.Link 
-              as={Link} 
-              to="/admin/branches/create" 
-              className={`sidebar-sublink ${isActive('/admin/branches/create') ? 'active' : ''}`}
-            >
-              <i className="bi bi-plus-lg me-2"></i>
-              Nueva sucursal
-            </Nav.Link>
-          </Accordion.Body>
-        </Accordion.Item>
-      </Accordion>
-      
-      <Nav.Link 
-        as={Link} 
-        to="/admin/reports" 
-        className={`sidebar-link ${isActive('/admin/reports') ? 'active' : ''}`}
-      >
-        <i className="bi bi-graph-up me-2"></i>
-        Reportes
-      </Nav.Link>
-      
-      <Nav.Link 
-        as={Link} 
-        to="/admin/settings" 
-        className={`sidebar-link ${isActive('/admin/settings') ? 'active' : ''}`}
-      >
-        <i className="bi bi-gear me-2"></i>
-        Configuración
-      </Nav.Link>
-    </>
-  );
-  
-  // Menú para vendedores
-  const renderVendorMenu = () => (
-    <>
-      <Nav.Link 
-        as={Link} 
-        to="/vendor" 
-        className={`sidebar-link ${isActive('/vendor') && !isActive('/vendor/') ? 'active' : ''}`}
-      >
-        <i className="bi bi-speedometer2 me-2"></i>
-        Dashboard
-      </Nav.Link>
-      
-      <Nav.Link 
-        as={Link} 
-        to="/vendor/orders" 
-        className={`sidebar-link ${isActive('/vendor/orders') ? 'active' : ''}`}
-      >
-        <i className="bi bi-cart me-2"></i>
-        Pedidos
-      </Nav.Link>
-      
-      <Nav.Link 
-        as={Link} 
-        to="/vendor/inventory" 
-        className={`sidebar-link ${isActive('/vendor/inventory') ? 'active' : ''}`}
-      >
-        <i className="bi bi-box-seam me-2"></i>
-        Inventario
-      </Nav.Link>
-      
-      <Nav.Link 
-        as={Link} 
-        to="/vendor/customers" 
-        className={`sidebar-link ${isActive('/vendor/customers') ? 'active' : ''}`}
-      >
-        <i className="bi bi-people me-2"></i>
-        Clientes
-      </Nav.Link>
-    </>
-  );
-  
-  // Menú para bodegueros
-  const renderWarehouseMenu = () => (
-    <>
-      <Nav.Link 
-        as={Link} 
-        to="/warehouse" 
-        className={`sidebar-link ${isActive('/warehouse') && !isActive('/warehouse/') ? 'active' : ''}`}
-      >
-        <i className="bi bi-speedometer2 me-2"></i>
-        Dashboard
-      </Nav.Link>
-      
-      <Nav.Link 
-        as={Link} 
-        to="/warehouse/stock" 
-        className={`sidebar-link ${isActive('/warehouse/stock') ? 'active' : ''}`}
-      >
-        <i className="bi bi-box-seam me-2"></i>
-        Gestión de Stock
-      </Nav.Link>
-      
-      <Nav.Link 
-        as={Link} 
-        to="/warehouse/orders" 
-        className={`sidebar-link ${isActive('/warehouse/orders') ? 'active' : ''}`}
-      >
-        <i className="bi bi-cart me-2"></i>
-        Pedidos Pendientes
-      </Nav.Link>
-      
-      <Nav.Link 
-        as={Link} 
-        to="/warehouse/transfers" 
-        className={`sidebar-link ${isActive('/warehouse/transfers') ? 'active' : ''}`}
-      >
-        <i className="bi bi-arrow-left-right me-2"></i>
-        Transferencias
-      </Nav.Link>
-    </>
-  );
-  
-  // Menú para contadores
-  const renderAccountantMenu = () => (
-    <>
-      <Nav.Link 
-        as={Link} 
-        to="/accountant" 
-        className={`sidebar-link ${isActive('/accountant') && !isActive('/accountant/') ? 'active' : ''}`}
-      >
-        <i className="bi bi-speedometer2 me-2"></i>
-        Dashboard
-      </Nav.Link>
-      
-      <Nav.Link 
-        as={Link} 
-        to="/accountant/payments" 
-        className={`sidebar-link ${isActive('/accountant/payments') ? 'active' : ''}`}
-      >
-        <i className="bi bi-credit-card me-2"></i>
-        Gestión de Pagos
-      </Nav.Link>
-      
-      <Nav.Link 
-        as={Link} 
-        to="/accountant/reports" 
-        className={`sidebar-link ${isActive('/accountant/reports') ? 'active' : ''}`}
-      >
-        <i className="bi bi-graph-up me-2"></i>
-        Informes de Ventas
-      </Nav.Link>
-    </>
-  );
-  
-  // Menú para clientes
-  const renderCustomerMenu = () => (
-    <>
-      <Nav.Link 
-        as={Link} 
-        to="/profile" 
-        className={`sidebar-link ${isActive('/profile') ? 'active' : ''}`}
-      >
-        <i className="bi bi-person me-2"></i>
-        Mi Perfil
-      </Nav.Link>
-      
-      <Nav.Link 
-        as={Link} 
-        to="/orders" 
-        className={`sidebar-link ${isActive('/orders') ? 'active' : ''}`}
-      >
-        <i className="bi bi-cart me-2"></i>
-        Mis Pedidos
-      </Nav.Link>
-      
-      <Nav.Link 
-        as={Link} 
-        to="/addresses" 
-        className={`sidebar-link ${isActive('/addresses') ? 'active' : ''}`}
-      >
-        <i className="bi bi-geo-alt me-2"></i>
-        Mis Direcciones
-      </Nav.Link>
-      
-      <Nav.Link 
-        as={Link} 
-        to="/wishlist" 
-        className={`sidebar-link ${isActive('/wishlist') ? 'active' : ''}`}
-      >
-        <i className="bi bi-heart me-2"></i>
-        Lista de Deseos
-      </Nav.Link>
-    </>
-  );
+  const menuItems = getMenuItems();
   
   return (
-    <div className={`sidebar ${isOpen ? 'open' : ''}`}>
-      <div className="sidebar-header">
-        <h5 className="m-0">Panel de Control</h5>
+    <div className={`sidebar bg-light ${isOpen ? 'show' : ''}`} style={{
+      width: 250,
+      height: '100%',
+      position: 'fixed',
+      top: 0,
+      left: isOpen ? 0 : -250,
+      zIndex: 1030,
+      overflowY: 'auto',
+      transition: 'left 0.3s ease',
+      paddingTop: '56px',
+      boxShadow: isOpen ? '0 0 10px rgba(0,0,0,0.2)' : 'none'
+    }}>
+      <div className="p-3">
         <button 
-          className="btn-close d-md-none" 
+          className="btn btn-sm btn-outline-secondary d-lg-none mb-3 w-100" 
           onClick={toggleSidebar}
-          aria-label="Cerrar menú lateral"
-        ></button>
+        >
+          <i className="bi bi-x-lg me-2"></i> Cerrar
+        </button>
+        
+        <ul className="nav flex-column">
+          {menuItems.map((item, index) => (
+            <li className="nav-item" key={index}>
+              <Link 
+                to={item.path} 
+                className={`nav-link py-3 ${isActive(item.path) ? 'text-primary fw-bold' : 'text-dark'}`}
+                onClick={() => {
+                  if (isOpen) toggleSidebar();
+                }}
+              >
+                <i className={`${item.icon} me-2`}></i> {item.title}
+              </Link>
+            </li>
+          ))}
+        </ul>
       </div>
-      
-      <div className="sidebar-body">
-        <Nav className="flex-column">
-          {renderMenu()}
-        </Nav>
-      </div>
-      
-      <style jsx="true">{`
-        .sidebar {
-          position: fixed;
-          top: 56px; /* Altura del navbar */
-          left: 0;
-          bottom: 0;
-          width: 250px;
-          background-color: #f8f9fa;
-          border-right: 1px solid #dee2e6;
-          z-index: 1030;
-          transition: transform 0.3s ease;
-          overflow-y: auto;
-        }
-        
-        @media (max-width: 767.98px) {
-          .sidebar {
-            transform: translateX(-100%);
-          }
-          
-          .sidebar.open {
-            transform: translateX(0);
-          }
-        }
-        
-        .sidebar-header {
-          padding: 1rem;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          border-bottom: 1px solid #dee2e6;
-        }
-        
-        .sidebar-body {
-          padding: 1rem 0;
-        }
-        
-        .sidebar-link {
-          padding: 0.5rem 1rem;
-          color: #212529;
-        }
-        
-        .sidebar-link:hover {
-          background-color: #e9ecef;
-        }
-        
-        .sidebar-link.active {
-          background-color: #0d6efd;
-          color: white;
-        }
-        
-        .sidebar-accordion-header {
-          padding: 0;
-        }
-        
-        .sidebar-accordion-header button {
-          padding: 0.5rem 1rem;
-          color: #212529;
-          font-weight: 400;
-          text-align: left;
-          width: 100%;
-        }
-        
-        .sidebar-sublink {
-          padding: 0.5rem 1rem 0.5rem 2rem;
-          color: #212529;
-        }
-        
-        .sidebar-sublink:hover {
-          background-color: #e9ecef;
-        }
-        
-        .sidebar-sublink.active {
-          background-color: #0d6efd;
-          color: white;
-        }
-      `}</style>
     </div>
   );
 };

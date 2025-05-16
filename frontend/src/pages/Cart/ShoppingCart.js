@@ -1,81 +1,166 @@
-import React from 'react';
-import { Container, Row, Col, Alert, Button } from 'react-bootstrap';
-import { Link } from 'react-router-dom';
-import { useDispatch, useSelector } from 'react-redux';
+import React, { useState, useEffect } from 'react';
+import { useSelector, useDispatch } from 'react-redux';
+import { Link, useNavigate } from 'react-router-dom';
 import { 
-  selectCartItems, 
-  selectIsCartEmpty, 
-  clearCart 
-} from '../../store/cart.slice';
-
+  Box, Typography, Paper, Grid, Button, IconButton, 
+  Table, TableBody, TableCell, TableContainer, TableHead, 
+  TableRow, Alert, Divider, TextField
+} from '@mui/material';
+import { Add, Remove, Delete, ShoppingBag } from '@mui/icons-material';
 import CartItem from '../../components/cart/CartItem';
 import CartSummary from '../../components/cart/CartSummary';
+import { updateQuantity, removeFromCart, clearCart } from '../../store/cart.slice';
 
 const ShoppingCart = () => {
   const dispatch = useDispatch();
-  const cartItems = useSelector(selectCartItems);
-  const isEmpty = useSelector(selectIsCartEmpty);
+  const navigate = useNavigate();
+  const { user } = useSelector(state => state.auth);
+  const { items, loading, error } = useSelector(state => state.cart);
+  const [subtotal, setSubtotal] = useState(0);
+  const [discount, setDiscount] = useState(0);
   
-  // Limpiar carrito
+  useEffect(() => {
+    // Calcular subtotal
+    const newSubtotal = items.reduce((total, item) => 
+      total + (item.quantity * item.price), 0);
+    setSubtotal(newSubtotal);
+    
+    // Calcular descuento (si hay más de 4 artículos diferentes)
+    if (items.length >= 4 && user?.role === 'customer') {
+      setDiscount(newSubtotal * 0.05); // 5% de descuento
+    } else {
+      setDiscount(0);
+    }
+  }, [items, user]);
+
+  const handleUpdateQuantity = (productId, newQuantity) => {
+    if (newQuantity <= 0) {
+      dispatch(removeFromCart(productId));
+    } else {
+      dispatch(updateQuantity({ productId, quantity: newQuantity }));
+    }
+  };
+
+  const handleRemoveItem = (productId) => {
+    dispatch(removeFromCart(productId));
+  };
+
   const handleClearCart = () => {
-    if (window.confirm('¿Estás seguro de que deseas vaciar el carrito?')) {
+    if (window.confirm('¿Está seguro que desea vaciar el carrito?')) {
       dispatch(clearCart());
     }
   };
-  
+
+  const handleCheckout = () => {
+    // Redirigir a la página de checkout
+    navigate('/cart/checkout');
+  };
+
+  // Formatear montos en pesos chilenos
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('es-CL', {
+      style: 'currency',
+      currency: 'CLP'
+    }).format(amount);
+  };
+
   return (
-    <Container className="py-4">
-      <h1 className="mb-4">Carrito de compras</h1>
+    <Box p={3}>
+      <Typography variant="h4" gutterBottom component="h1">
+        Carrito de Compras
+      </Typography>
       
-      {isEmpty ? (
-        <div className="text-center py-5">
-          <Alert variant="info">
-            <h4>Tu carrito está vacío</h4>
-            <p className="mb-0">
-              No tienes productos en tu carrito de compras.
-              ¡Explora nuestro catálogo para encontrar lo que necesitas!
-            </p>
-          </Alert>
-          <Button
-            as={Link}
-            to="/products"
-            variant="primary"
-            className="mt-3"
-            size="lg"
-          >
-            Ir al catálogo
-          </Button>
-        </div>
-      ) : (
-        <Row>
-          {/* Lista de productos */}
-          <Col lg={8} className="mb-4">
-            <div className="d-flex justify-content-between align-items-center mb-3">
-              <h4 className="mb-0">Productos en tu carrito</h4>
-              <Button
-                variant="outline-danger"
-                size="sm"
-                onClick={handleClearCart}
-              >
-                Vaciar carrito
-              </Button>
-            </div>
-            
-            {/* Items del carrito */}
-            <div className="cart-items">
-              {cartItems.map(item => (
-                <CartItem key={item.id} item={item} />
-              ))}
-            </div>
-          </Col>
-          
-          {/* Resumen del carrito */}
-          <Col lg={4}>
-            <CartSummary />
-          </Col>
-        </Row>
+      {error && (
+        <Alert severity="error" className="mb-4">
+          {error}
+        </Alert>
       )}
-    </Container>
+      
+      {items.length === 0 ? (
+        <Paper elevation={2} sx={{ p: 4, textAlign: 'center' }}>
+          <ShoppingBag sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
+          <Typography variant="h5" gutterBottom>
+            Tu carrito está vacío
+          </Typography>
+          <Typography variant="body1" color="text.secondary" paragraph>
+            Parece que aún no has agregado productos a tu carrito.
+          </Typography>
+          <Button 
+            variant="contained" 
+            color="primary"
+            component={Link}
+            to="/catalog"
+            sx={{ mt: 2 }}
+          >
+            Explorar productos
+          </Button>
+        </Paper>
+      ) : (
+        <Grid container spacing={3}>
+          {/* Lista de productos */}
+          <Grid item xs={12} md={8}>
+            <Paper elevation={2}>
+              <TableContainer>
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Producto</TableCell>
+                      <TableCell align="center">Precio</TableCell>
+                      <TableCell align="center">Cantidad</TableCell>
+                      <TableCell align="right">Total</TableCell>
+                      <TableCell align="center">Acciones</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {items.map((item) => (
+                      <CartItem 
+                        key={item.productId}
+                        item={item}
+                        onUpdateQuantity={handleUpdateQuantity}
+                        onRemove={handleRemoveItem}
+                        formatCurrency={formatCurrency}
+                      />
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+              
+              <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between' }}>
+                <Button 
+                  variant="outlined" 
+                  color="primary"
+                  component={Link}
+                  to="/catalog"
+                >
+                  Seguir comprando
+                </Button>
+                <Button 
+                  variant="outlined" 
+                  color="error"
+                  onClick={handleClearCart}
+                  disabled={loading}
+                >
+                  Vaciar carrito
+                </Button>
+              </Box>
+            </Paper>
+          </Grid>
+          
+          {/* Resumen y checkout */}
+          <Grid item xs={12} md={4}>
+            <CartSummary 
+              subtotal={subtotal}
+              discount={discount}
+              formatCurrency={formatCurrency}
+              onCheckout={handleCheckout}
+              loading={loading}
+              isLoggedIn={!!user}
+              loginUrl="/auth/login"
+            />
+          </Grid>
+        </Grid>
+      )}
+    </Box>
   );
 };
 

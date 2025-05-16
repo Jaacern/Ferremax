@@ -1,150 +1,160 @@
-import React, { useState, useEffect } from 'react';
-import { Card, ListGroup, Badge } from 'react-bootstrap';
+import React from 'react';
 import { Link } from 'react-router-dom';
+import { formatDate, formatOrderStatus } from '../../utils/formatUtils';
 
-const ActivityFeed = ({ activities = [], limit = 10, showHeader = true, title = "Actividad reciente" }) => {
-  const [displayActivities, setDisplayActivities] = useState([]);
-  
-  // Procesar actividades cuando cambian
-  useEffect(() => {
-    setDisplayActivities(activities.slice(0, limit));
-  }, [activities, limit]);
-  
-  // Determinar icono según tipo de actividad
+/**
+ * Componente que muestra feed de actividad reciente para el dashboard.
+ * 
+ * @param {Object} props - Propiedades del componente
+ * @param {Array} props.activities - Lista de actividades recientes
+ * @param {boolean} props.loading - Indica si está cargando
+ * @returns {React.ReactNode} - Feed de actividad
+ */
+const ActivityFeed = ({ activities = [], loading = false }) => {
+  // Obtener icono según tipo de actividad
   const getActivityIcon = (type) => {
     switch (type) {
       case 'order_created':
-        return <i className="bi bi-cart-plus text-success"></i>;
-      case 'order_updated':
-        return <i className="bi bi-cart-check text-primary"></i>;
+        return <i className="bi bi-bag-plus text-primary"></i>;
+      case 'order_status':
+        return <i className="bi bi-arrow-repeat text-info"></i>;
       case 'order_cancelled':
-        return <i className="bi bi-cart-x text-danger"></i>;
-      case 'payment_received':
+        return <i className="bi bi-x-circle text-danger"></i>;
+      case 'payment_completed':
         return <i className="bi bi-credit-card text-success"></i>;
+      case 'payment_failed':
+        return <i className="bi bi-exclamation-triangle text-warning"></i>;
+      case 'stock_low':
+        return <i className="bi bi-archive text-warning"></i>;
       case 'stock_updated':
         return <i className="bi bi-box-seam text-primary"></i>;
-      case 'stock_alert':
-        return <i className="bi bi-exclamation-triangle text-warning"></i>;
       case 'user_registered':
-        return <i className="bi bi-person-plus text-info"></i>;
-      case 'product_created':
-        return <i className="bi bi-plus-circle text-success"></i>;
-      case 'product_updated':
-        return <i className="bi bi-pencil text-primary"></i>;
+        return <i className="bi bi-person-plus text-success"></i>;
       default:
-        return <i className="bi bi-activity text-secondary"></i>;
+        return <i className="bi bi-bell text-secondary"></i>;
     }
   };
   
-  // Formatear tiempo relativo (ej: "hace 5 minutos")
-  const formatRelativeTime = (dateString) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffInSeconds = Math.floor((now - date) / 1000);
-    
-    if (diffInSeconds < 60) {
-      return 'hace menos de un minuto';
-    }
-    
-    const diffInMinutes = Math.floor(diffInSeconds / 60);
-    if (diffInMinutes < 60) {
-      return `hace ${diffInMinutes} ${diffInMinutes === 1 ? 'minuto' : 'minutos'}`;
-    }
-    
-    const diffInHours = Math.floor(diffInMinutes / 60);
-    if (diffInHours < 24) {
-      return `hace ${diffInHours} ${diffInHours === 1 ? 'hora' : 'horas'}`;
-    }
-    
-    const diffInDays = Math.floor(diffInHours / 24);
-    if (diffInDays < 30) {
-      return `hace ${diffInDays} ${diffInDays === 1 ? 'día' : 'días'}`;
-    }
-    
-    // Para fechas más antiguas, mostrar la fecha completa
-    return date.toLocaleDateString();
-  };
-  
-  // Determinar enlace según tipo de actividad
-  const getActivityLink = (activity) => {
-    switch (activity.type) {
-      case 'order_created':
-      case 'order_updated':
-      case 'order_cancelled':
-        return `/admin/orders/${activity.entity_id}`;
-      case 'payment_received':
-        return `/admin/payments/${activity.entity_id}`;
-      case 'stock_updated':
-      case 'stock_alert':
-        return `/admin/stock?product_id=${activity.entity_id}`;
-      case 'user_registered':
-        return `/admin/users/${activity.entity_id}`;
-      case 'product_created':
-      case 'product_updated':
-        return `/admin/products/${activity.entity_id}`;
-      default:
-        return '#';
-    }
-  };
+  // Mostrar placeholder si está cargando
+  if (loading) {
+    return (
+      <div className="card h-100">
+        <div className="card-header bg-light">
+          <h5 className="mb-0">Actividad Reciente</h5>
+        </div>
+        <div className="card-body">
+          <div className="placeholder-glow">
+            <span className="placeholder col-12"></span>
+            <span className="placeholder col-6"></span>
+            <span className="placeholder col-8"></span>
+            <span className="placeholder col-10"></span>
+          </div>
+        </div>
+      </div>
+    );
+  }
   
   // Si no hay actividades, mostrar mensaje
-  if (displayActivities.length === 0) {
+  if (!activities || activities.length === 0) {
     return (
-      <Card className="h-100">
-        {showHeader && <Card.Header as="h5">{title}</Card.Header>}
-        <Card.Body className="text-center text-muted py-5">
-          <i className="bi bi-calendar3 fs-1 mb-3 d-block"></i>
-          <p>No hay actividad reciente para mostrar.</p>
-        </Card.Body>
-      </Card>
+      <div className="card h-100">
+        <div className="card-header bg-light">
+          <h5 className="mb-0">Actividad Reciente</h5>
+        </div>
+        <div className="card-body d-flex justify-content-center align-items-center">
+          <div className="text-center text-muted">
+            <i className="bi bi-clock-history fs-1"></i>
+            <p className="mt-2">No hay actividad reciente.</p>
+          </div>
+        </div>
+      </div>
     );
   }
   
   return (
-    <Card className="h-100">
-      {showHeader && <Card.Header as="h5">{title}</Card.Header>}
-      <ListGroup variant="flush">
-        {displayActivities.map((activity) => (
-          <ListGroup.Item key={activity.id} className="d-flex align-items-start py-3">
-            <div className="me-3 fs-4">
-              {getActivityIcon(activity.type)}
-            </div>
-            <div className="flex-grow-1">
-              <div className="d-flex justify-content-between align-items-center mb-1">
-                <Link 
-                  to={getActivityLink(activity)} 
-                  className="fw-bold text-decoration-none"
-                >
-                  {activity.title}
-                </Link>
-                <small className="text-muted">
-                  {formatRelativeTime(activity.timestamp)}
-                </small>
-              </div>
-              <p className="mb-1 text-muted">{activity.description}</p>
-              {activity.meta && activity.meta.status && (
-                <Badge 
-                  bg={
-                    activity.meta.status === 'completed' ? 'success' :
-                    activity.meta.status === 'pending' ? 'warning' :
-                    activity.meta.status === 'cancelled' ? 'danger' : 'secondary'
-                  }
-                >
-                  {activity.meta.status}
-                </Badge>
-              )}
-            </div>
-          </ListGroup.Item>
-        ))}
-      </ListGroup>
-      {activities.length > limit && (
-        <Card.Footer className="text-center">
-          <Link to="/admin/activities" className="text-decoration-none">
-            Ver todas las actividades
-          </Link>
-        </Card.Footer>
-      )}
-    </Card>
+    <div className="card h-100">
+      <div className="card-header bg-light">
+        <h5 className="mb-0">Actividad Reciente</h5>
+      </div>
+      <div className="card-body p-0">
+        <div className="list-group list-group-flush">
+          {activities.map((activity, index) => {
+            // Preparar datos según el tipo de actividad
+            let title = '';
+            let description = '';
+            let linkTo = '';
+            
+            switch (activity.type) {
+              case 'order_created':
+                title = 'Nuevo Pedido';
+                description = `Pedido #${activity.order_number} creado por ${activity.user_name || 'Cliente'}`;
+                linkTo = `/orders/${activity.order_id}`;
+                break;
+              case 'order_status':
+                title = 'Cambio de Estado';
+                description = `Pedido #${activity.order_number} cambió de ${formatOrderStatus(activity.old_status).text} a ${formatOrderStatus(activity.new_status).text}`;
+                linkTo = `/orders/${activity.order_id}`;
+                break;
+              case 'order_cancelled':
+                title = 'Pedido Cancelado';
+                description = `Pedido #${activity.order_number} cancelado: ${activity.notes || 'Sin motivo especificado'}`;
+                linkTo = `/orders/${activity.order_id}`;
+                break;
+              case 'payment_completed':
+                title = 'Pago Completado';
+                description = `Pago recibido por $${activity.amount.toLocaleString()} para pedido #${activity.order_number}`;
+                linkTo = `/orders/${activity.order_id}`;
+                break;
+              case 'stock_low':
+                title = 'Stock Bajo';
+                description = `${activity.product_name} está bajo el stock mínimo en ${activity.branch_name}`;
+                linkTo = `/stock?product_id=${activity.product_id}`;
+                break;
+              case 'user_registered':
+                title = 'Nuevo Usuario';
+                description = `${activity.user_name} se ha registrado en el sistema`;
+                linkTo = activity.user_id ? `/users/${activity.user_id}` : '';
+                break;
+              default:
+                title = 'Actividad';
+                description = activity.description || 'Sin descripción';
+                break;
+            }
+            
+            return (
+              <Link 
+                key={index} 
+                to={linkTo || '#'} 
+                className="list-group-item list-group-item-action"
+                onClick={(e) => !linkTo && e.preventDefault()}
+              >
+                <div className="d-flex">
+                  <div className="activity-icon me-3">
+                    {getActivityIcon(activity.type)}
+                  </div>
+                  <div className="flex-grow-1">
+                    <div className="d-flex justify-content-between align-items-center">
+                      <h6 className="mb-0">{title}</h6>
+                      <small className="text-muted">
+                        {formatDate(activity.timestamp, true)}
+                      </small>
+                    </div>
+                    <p className="mb-0 text-secondary">
+                      {description}
+                    </p>
+                  </div>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+      <div className="card-footer bg-white text-center">
+        <button className="btn btn-sm btn-outline-primary">
+          Ver Más Actividad
+        </button>
+      </div>
+    </div>
   );
 };
 

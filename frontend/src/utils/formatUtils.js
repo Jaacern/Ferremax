@@ -1,161 +1,211 @@
 /**
- * Utilidades para formateo de diferentes tipos de datos en la aplicación
+ * Utilidades para formateo de datos
  */
 
 /**
- * Formatea un precio en formato moneda chilena
+ * Formatear precio con simbolo de moneda
  * @param {number} price - Precio a formatear
- * @param {boolean} includeSymbol - Si debe incluir el símbolo $ (por defecto true)
+ * @param {string} currency - Código de moneda (por defecto CLP)
  * @returns {string} Precio formateado
  */
-export const formatPrice = (price, includeSymbol = true) => {
-  if (price === undefined || price === null) return '-';
+export const formatPrice = (price, currency = 'CLP') => {
+  if (price === undefined || price === null) return '';
   
-  return new Intl.NumberFormat('es-CL', {
-    style: includeSymbol ? 'currency' : 'decimal',
-    currency: 'CLP',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0
-  }).format(price);
+  const formatter = new Intl.NumberFormat('es-CL', {
+    style: 'currency',
+    currency,
+    minimumFractionDigits: currency === 'CLP' ? 0 : 2
+  });
+  
+  return formatter.format(price);
 };
 
 /**
- * Formatea una fecha en formato local chileno
- * @param {string|Date} date - Fecha a formatear (string ISO o objeto Date)
- * @param {boolean} includeTime - Si debe incluir la hora (por defecto false)
+ * Formatear fecha
+ * @param {string} dateString - Fecha en formato ISO
+ * @param {boolean} includeTime - Incluir hora
  * @returns {string} Fecha formateada
  */
-export const formatDate = (date, includeTime = false) => {
-  if (!date) return '-';
+export const formatDate = (dateString, includeTime = false) => {
+  if (!dateString) return '';
   
-  const dateObj = typeof date === 'string' ? new Date(date) : date;
-  
-  if (isNaN(dateObj.getTime())) return '-';
-  
-  const options = {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    ...(includeTime && {
-      hour: '2-digit',
-      minute: '2-digit'
-    })
-  };
-  
-  return dateObj.toLocaleDateString('es-CL', options);
-};
-
-/**
- * Formatea un timestamp en formato relativo (e.g., "hace 5 minutos")
- * @param {string|Date} date - Fecha a formatear
- * @returns {string} Tiempo relativo
- */
-export const formatRelativeTime = (date) => {
-  if (!date) return '-';
-  
-  const dateObj = typeof date === 'string' ? new Date(date) : date;
-  
-  if (isNaN(dateObj.getTime())) return '-';
-  
-  const rtf = new Intl.RelativeTimeFormat('es', { numeric: 'auto' });
-  const now = new Date();
-  const diffInSeconds = Math.floor((dateObj - now) / 1000);
-  
-  // Convertir a la unidad más apropiada
-  const secondsInMinute = 60;
-  const secondsInHour = secondsInMinute * 60;
-  const secondsInDay = secondsInHour * 24;
-  const secondsInMonth = secondsInDay * 30;
-  const secondsInYear = secondsInDay * 365;
-  
-  if (Math.abs(diffInSeconds) < secondsInMinute) {
-    return rtf.format(Math.round(diffInSeconds), 'second');
-  } else if (Math.abs(diffInSeconds) < secondsInHour) {
-    return rtf.format(Math.round(diffInSeconds / secondsInMinute), 'minute');
-  } else if (Math.abs(diffInSeconds) < secondsInDay) {
-    return rtf.format(Math.round(diffInSeconds / secondsInHour), 'hour');
-  } else if (Math.abs(diffInSeconds) < secondsInMonth) {
-    return rtf.format(Math.round(diffInSeconds / secondsInDay), 'day');
-  } else if (Math.abs(diffInSeconds) < secondsInYear) {
-    return rtf.format(Math.round(diffInSeconds / secondsInMonth), 'month');
-  } else {
-    return rtf.format(Math.round(diffInSeconds / secondsInYear), 'year');
+  try {
+    const date = new Date(dateString);
+    const options = {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      ...(includeTime && { hour: '2-digit', minute: '2-digit' })
+    };
+    
+    return date.toLocaleDateString('es-CL', options);
+  } catch (error) {
+    console.error('Error al formatear fecha:', error);
+    return dateString;
   }
 };
 
 /**
- * Formatea un número de teléfono en formato chileno
- * @param {string} phone - Número telefónico a formatear
- * @returns {string} Teléfono formateado
- */
-export const formatPhone = (phone) => {
-  if (!phone) return '-';
-  
-  // Eliminar caracteres no numéricos
-  const cleaned = phone.replace(/\D/g, '');
-  
-  // Formato para teléfonos chilenos
-  if (cleaned.length === 9) {
-    // Celular: +56 9 1234 5678
-    return `+56 ${cleaned.slice(0, 1)} ${cleaned.slice(1, 5)} ${cleaned.slice(5)}`;
-  } else if (cleaned.length === 8) {
-    // Fijo: +56 2 1234 5678 (asumiendo código de área 2 para Santiago)
-    return `+56 2 ${cleaned.slice(0, 4)} ${cleaned.slice(4)}`;
-  } else {
-    // Devolver sin formato si no coincide con patrones conocidos
-    return phone;
-  }
-};
-
-/**
- * Formatea un RUT chileno (agrega puntos y guión)
+ * Formatear RUT chileno
  * @param {string} rut - RUT sin formato
  * @returns {string} RUT formateado
  */
 export const formatRut = (rut) => {
-  if (!rut) return '-';
+  if (!rut) return '';
   
-  // Eliminar puntos y guión
-  let rutClean = rut.replace(/\./g, '').replace('-', '');
+  // Eliminar puntos y guiones existentes
+  const cleanRut = rut.replace(/[.-]/g, '');
   
   // Separar cuerpo y dígito verificador
-  const dv = rutClean.slice(-1);
-  const rutBody = rutClean.slice(0, -1);
+  const dv = cleanRut.slice(-1);
+  const body = cleanRut.slice(0, -1);
   
   // Formatear con puntos
   let formatted = '';
-  for (let i = rutBody.length - 1, j = 0; i >= 0; i--, j++) {
-    formatted = rutBody.charAt(i) + formatted;
-    if ((j + 1) % 3 === 0 && i !== 0) {
+  for (let i = body.length - 1, j = 0; i >= 0; i--, j++) {
+    formatted = body[i] + formatted;
+    if (j > 0 && j % 3 === 0 && i > 0) {
       formatted = '.' + formatted;
     }
   }
   
-  // Agregar dígito verificador
+  // Añadir guión y dígito verificador
   return `${formatted}-${dv}`;
 };
 
 /**
- * Formatea un texto para mostrar una versión truncada con ellipsis
+ * Formatear número de teléfono chileno
+ * @param {string} phone - Número de teléfono
+ * @returns {string} Número formateado
+ */
+export const formatPhone = (phone) => {
+  if (!phone) return '';
+  
+  // Eliminar espacios, paréntesis y guiones
+  const cleaned = phone.replace(/[\s\(\)-]/g, '');
+  
+  if (cleaned.startsWith('+56')) {
+    // Formato internacional
+    if (cleaned.length === 11) {
+      // +56 9 1234 5678
+      return `+56 ${cleaned.substring(3, 4)} ${cleaned.substring(4, 8)} ${cleaned.substring(8)}`;
+    } else if (cleaned.length === 10) {
+      // +56 2 2123 4567
+      return `+56 ${cleaned.substring(3, 4)} ${cleaned.substring(4, 8)} ${cleaned.substring(8)}`;
+    }
+  } else if (cleaned.startsWith('9') && cleaned.length === 9) {
+    // Celular nacional: 9 1234 5678
+    return `${cleaned.substring(0, 1)} ${cleaned.substring(1, 5)} ${cleaned.substring(5)}`;
+  } else if (cleaned.length === 9) {
+    // Fijo con código de área: 2 2123 4567
+    return `${cleaned.substring(0, 1)} ${cleaned.substring(1, 5)} ${cleaned.substring(5)}`;
+  }
+  
+  // Devolver sin formato si no coincide con los patrones
+  return phone;
+};
+
+/**
+ * Truncar texto a una longitud específica
  * @param {string} text - Texto a truncar
- * @param {number} maxLength - Longitud máxima (por defecto 100)
+ * @param {number} maxLength - Longitud máxima
  * @returns {string} Texto truncado
  */
 export const truncateText = (text, maxLength = 100) => {
   if (!text) return '';
   
-  if (text.length <= maxLength) return text;
+  if (text.length <= maxLength) {
+    return text;
+  }
   
-  return text.substring(0, maxLength) + '...';
+  return `${text.substring(0, maxLength)}...`;
 };
 
 /**
- * Formatea un número con separadores de miles
- * @param {number} number - Número a formatear
+ * Formatear número de orden para mostrar
+ * @param {string} orderNumber - Número de orden (ORD-YYYYMMDD-XXXXXX)
  * @returns {string} Número formateado
  */
-export const formatNumber = (number) => {
-  if (number === undefined || number === null) return '-';
+export const formatOrderNumber = (orderNumber) => {
+  if (!orderNumber) return '';
   
-  return new Intl.NumberFormat('es-CL').format(number);
+  const parts = orderNumber.split('-');
+  if (parts.length !== 3) return orderNumber;
+  
+  const dateStr = parts[1];
+  const reference = parts[2];
+  
+  if (dateStr.length === 8) {
+    const year = dateStr.substring(0, 4);
+    const month = dateStr.substring(4, 6);
+    const day = dateStr.substring(6, 8);
+    
+    return `#${reference} (${day}/${month}/${year})`;
+  }
+  
+  return orderNumber;
+};
+
+/**
+ * Convertir primera letra a mayúscula
+ * @param {string} text - Texto a convertir
+ * @returns {string} Texto con primera letra en mayúscula
+ */
+export const capitalizeFirst = (text) => {
+  if (!text) return '';
+  return text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
+};
+
+/**
+ * Formatear estado de orden para visualización
+ * @param {string} status - Estado de la orden
+ * @returns {Object} Objeto con texto y color para UI
+ */
+export const formatOrderStatus = (status) => {
+  const statusMap = {
+    'pendiente': { text: 'Pendiente', color: 'warning' },
+    'aprobado': { text: 'Aprobado', color: 'info' },
+    'rechazado': { text: 'Rechazado', color: 'danger' },
+    'en preparación': { text: 'En preparación', color: 'primary' },
+    'listo para entrega': { text: 'Listo para entrega', color: 'success' },
+    'enviado': { text: 'Enviado', color: 'info' },
+    'entregado': { text: 'Entregado', color: 'success' },
+    'cancelado': { text: 'Cancelado', color: 'danger' }
+  };
+  
+  return statusMap[status] || { text: capitalizeFirst(status), color: 'secondary' };
+};
+
+/**
+ * Formatear método de pago para visualización
+ * @param {string} method - Método de pago
+ * @returns {Object} Objeto con texto e icono para UI
+ */
+export const formatPaymentMethod = (method) => {
+  const methodMap = {
+    'tarjeta de crédito': { text: 'Tarjeta de Crédito', icon: 'credit-card' },
+    'tarjeta de débito': { text: 'Tarjeta de Débito', icon: 'credit-card' },
+    'transferencia bancaria': { text: 'Transferencia Bancaria', icon: 'bank' },
+    'efectivo': { text: 'Efectivo', icon: 'cash' }
+  };
+  
+  return methodMap[method] || { text: capitalizeFirst(method), icon: 'credit-card' };
+};
+
+/**
+ * Formatear estado de pago para visualización
+ * @param {string} status - Estado del pago
+ * @returns {Object} Objeto con texto y color para UI
+ */
+export const formatPaymentStatus = (status) => {
+  const statusMap = {
+    'pendiente': { text: 'Pendiente', color: 'warning' },
+    'procesando': { text: 'Procesando', color: 'info' },
+    'completado': { text: 'Completado', color: 'success' },
+    'fallido': { text: 'Fallido', color: 'danger' },
+    'reembolsado': { text: 'Reembolsado', color: 'secondary' },
+    'cancelado': { text: 'Cancelado', color: 'danger' }
+  };
+  
+  return statusMap[status] || { text: capitalizeFirst(status), color: 'secondary' };
 };

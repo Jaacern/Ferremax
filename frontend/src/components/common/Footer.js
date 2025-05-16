@@ -1,107 +1,133 @@
 import React from 'react';
-import { Container, Row, Col } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
   
   return (
-    <footer className="bg-dark text-light py-4 mt-auto">
-      <Container>
-        <Row className="mb-4">
-          <Col lg={3} md={6} className="mb-4 mb-lg-0">
-            <h5>FERREMAS</h5>
-            <p className="text-muted small">
-              Distribuidora de productos de ferretería y construcción desde 1980.
-              Ofrecemos todo lo que necesitas para tus proyectos.
+    <footer className="bg-dark text-white py-5 mt-5">
+      <div className="container">
+        <div className="row">
+          {/* Logo y descripción */}
+          <div className="col-lg-4 mb-4 mb-lg-0">
+            <h5 className="text-uppercase mb-4">FERREMAS</h5>
+            <p className="mb-4">
+              Su proveedor de confianza en herramientas y materiales de construcción de alta calidad.
+              Encontrará todo lo que necesita para sus proyectos de construcción y renovación.
             </p>
-          </Col>
-          
-          <Col lg={3} md={6} className="mb-4 mb-lg-0">
-            <h5>Enlaces</h5>
-            <ul className="list-unstyled">
-              <li className="mb-2">
-                <Link to="/" className="text-decoration-none text-muted">Inicio</Link>
-              </li>
-              <li className="mb-2">
-                <Link to="/products" className="text-decoration-none text-muted">Productos</Link>
-              </li>
-              <li className="mb-2">
-                <Link to="/register" className="text-decoration-none text-muted">Crear cuenta</Link>
-              </li>
-              <li className="mb-2">
-                <Link to="/login" className="text-decoration-none text-muted">Iniciar sesión</Link>
-              </li>
-            </ul>
-          </Col>
-          
-          <Col lg={3} md={6} className="mb-4 mb-lg-0">
-            <h5>Categorías</h5>
-            <ul className="list-unstyled">
-              <li className="mb-2">
-                <Link to="/products?category=MANUAL_TOOLS" className="text-decoration-none text-muted">Herramientas Manuales</Link>
-              </li>
-              <li className="mb-2">
-                <Link to="/products?category=POWER_TOOLS" className="text-decoration-none text-muted">Herramientas Eléctricas</Link>
-              </li>
-              <li className="mb-2">
-                <Link to="/products?category=CONSTRUCTION_MATERIALS" className="text-decoration-none text-muted">Materiales de Construcción</Link>
-              </li>
-              <li className="mb-2">
-                <Link to="/products?category=SAFETY_EQUIPMENT" className="text-decoration-none text-muted">Equipos de Seguridad</Link>
-              </li>
-            </ul>
-          </Col>
-          
-          <Col lg={3} md={6}>
-            <h5>Contacto</h5>
-            <ul className="list-unstyled text-muted">
-              <li className="mb-2">
-                <i className="bi bi-geo-alt me-2"></i>
-                Av. Libertador O'Higgins 1111, Santiago
-              </li>
-              <li className="mb-2">
-                <i className="bi bi-telephone me-2"></i>
-                +56 2 2123 4567
-              </li>
-              <li className="mb-2">
-                <i className="bi bi-envelope me-2"></i>
-                contacto@ferremas.cl
-              </li>
-              <li className="mb-2">
-                <i className="bi bi-clock me-2"></i>
-                Lun-Vie: 9:00 - 18:00, Sáb: 9:00 - 14:00
-              </li>
-            </ul>
-          </Col>
-        </Row>
-        
-        <hr className="my-4 bg-secondary" />
-        
-        <Row className="align-items-center">
-          <Col md={6} className="text-center text-md-start">
-            <p className="mb-0 text-muted small">
-              &copy; {currentYear} FERREMAS. Todos los derechos reservados.
-            </p>
-          </Col>
-          <Col md={6} className="text-center text-md-end">
-            <div className="social-icons">
-              <a href="#!" className="text-muted me-3">
-                <i className="bi bi-facebook"></i>
+            <div className="d-flex">
+              <a href="https://facebook.com" className="text-white me-3" target="_blank" rel="noopener noreferrer">
+                <i className="bi bi-facebook fs-5"></i>
               </a>
-              <a href="#!" className="text-muted me-3">
-                <i className="bi bi-instagram"></i>
+              <a href="https://instagram.com" className="text-white me-3" target="_blank" rel="noopener noreferrer">
+                <i className="bi bi-instagram fs-5"></i>
               </a>
-              <a href="#!" className="text-muted me-3">
-                <i className="bi bi-twitter"></i>
+              <a href="https://twitter.com" className="text-white me-3" target="_blank" rel="noopener noreferrer">
+                <i className="bi bi-twitter fs-5"></i>
               </a>
-              <a href="#!" className="text-muted">
-                <i className="bi bi-youtube"></i>
+              <a href="https://youtube.com" className="text-white" target="_blank" rel="noopener noreferrer">
+                <i className="bi bi-youtube fs-5"></i>
               </a>
             </div>
-          </Col>
-        </Row>
-      </Container>
+          </div>
+          
+          {/* Enlaces de navegación */}
+          <div className="col-lg-2 col-md-4 mb-4 mb-md-0">
+            <h6 className="text-uppercase mb-4">Navegación</h6>
+            <ul className="list-unstyled mb-0">
+              <li className="mb-2">
+                <Link to="/" className="text-white text-decoration-none">Inicio</Link>
+              </li>
+              <li className="mb-2">
+                <Link to="/products" className="text-white text-decoration-none">Productos</Link>
+              </li>
+              <li className="mb-2">
+                <Link to="/cart" className="text-white text-decoration-none">Carrito</Link>
+              </li>
+              <li className="mb-2">
+                <Link to="/profile" className="text-white text-decoration-none">Mi Cuenta</Link>
+              </li>
+            </ul>
+          </div>
+          
+          {/* Enlaces de categorías */}
+          <div className="col-lg-2 col-md-4 mb-4 mb-md-0">
+            <h6 className="text-uppercase mb-4">Categorías</h6>
+            <ul className="list-unstyled mb-0">
+              <li className="mb-2">
+                <Link to="/products?category=MANUAL_TOOLS" className="text-white text-decoration-none">
+                  Herramientas Manuales
+                </Link>
+              </li>
+              <li className="mb-2">
+                <Link to="/products?category=POWER_TOOLS" className="text-white text-decoration-none">
+                  Herramientas Eléctricas
+                </Link>
+              </li>
+              <li className="mb-2">
+                <Link to="/products?category=CONSTRUCTION_MATERIALS" className="text-white text-decoration-none">
+                  Materiales
+                </Link>
+              </li>
+              <li className="mb-2">
+                <Link to="/products?category=SAFETY_EQUIPMENT" className="text-white text-decoration-none">
+                  Seguridad
+                </Link>
+              </li>
+            </ul>
+          </div>
+          
+          {/* Contacto */}
+          <div className="col-lg-4 col-md-4">
+            <h6 className="text-uppercase mb-4">Contacto</h6>
+            <p className="mb-2">
+              <i className="bi bi-geo-alt-fill me-2"></i>
+              Av. Libertador Bernardo O'Higgins 1111, Santiago
+            </p>
+            <p className="mb-2">
+              <i className="bi bi-envelope-fill me-2"></i>
+              <a href="mailto:contacto@ferremas.cl" className="text-white text-decoration-none">
+                contacto@ferremas.cl
+              </a>
+            </p>
+            <p className="mb-2">
+              <i className="bi bi-telephone-fill me-2"></i>
+              <a href="tel:+56221234567" className="text-white text-decoration-none">
+                +56 2 2123 4567
+              </a>
+            </p>
+            <p className="mb-0">
+              <i className="bi bi-clock-fill me-2"></i>
+              Lun - Vie: 9:00 - 18:00, Sáb: 9:00 - 14:00
+            </p>
+          </div>
+        </div>
+        
+        <hr className="my-4" />
+        
+        {/* Pie de página inferior */}
+        <div className="row align-items-center">
+          <div className="col-md-7 col-lg-8">
+            <p className="mb-md-0">
+              &copy; {currentYear} FERREMAS. Todos los derechos reservados.
+            </p>
+          </div>
+          
+          <div className="col-md-5 col-lg-4">
+            <div className="text-md-end">
+              <Link to="/privacy-policy" className="text-white text-decoration-none me-3">
+                Privacidad
+              </Link>
+              <Link to="/terms" className="text-white text-decoration-none me-3">
+                Términos
+              </Link>
+              <Link to="/support" className="text-white text-decoration-none">
+                Soporte
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
     </footer>
   );
 };

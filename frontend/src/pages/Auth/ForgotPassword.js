@@ -1,123 +1,109 @@
 import React, { useState } from 'react';
-import { Container, Row, Col, Card, Form, Button, Alert, Spinner } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
+import { Alert, TextField, Button, CircularProgress } from '@mui/material';
+import api from '../../services/api';
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [message, setMessage] = useState(null);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [validated, setValidated] = useState(false);
-  
+  const [success, setSuccess] = useState(false);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const form = e.currentTarget;
     
-    if (form.checkValidity() === false) {
-      e.stopPropagation();
-      setValidated(true);
+    if (!email) {
+      setError('Por favor ingrese su correo electrónico');
       return;
     }
     
-    setIsSubmitting(true);
-    setError(null);
-    setMessage(null);
-    
     try {
-      // En una aplicación real, aquí harías una petición al backend
-      // Simulación de envío de correo electrónico
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      setLoading(true);
+      setError(null);
       
-      setMessage('Se ha enviado un correo electrónico con instrucciones para restablecer tu contraseña.');
-      setEmail('');
+      // Aquí normalmente enviaríamos una solicitud al backend
+      // Como no vemos esta funcionalidad implementada en el backend proporcionado,
+      // simulamos el comportamiento
+      
+      // await api.post('/auth/forgot-password', { email });
+      
+      // Simulación
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      setSuccess(true);
     } catch (err) {
-      setError('No se pudo procesar tu solicitud. Por favor, intenta de nuevo más tarde.');
+      setError('No se pudo procesar la solicitud. Intente nuevamente.');
+      console.error(err);
     } finally {
-      setIsSubmitting(false);
+      setLoading(false);
     }
   };
-  
+
   return (
-    <Container className="py-5">
-      <Row className="justify-content-center">
-        <Col xs={12} md={8} lg={6}>
-          <Card className="shadow-sm">
-            <Card.Body className="p-4">
-              <div className="text-center mb-4">
-                <h2 className="fw-bold">Recuperar contraseña</h2>
-                <p className="text-muted">
-                  Ingresa tu correo electrónico y te enviaremos instrucciones para restablecer tu contraseña.
-                </p>
-              </div>
-              
-              {message && (
-                <Alert variant="success" className="mb-4">
-                  {message}
-                </Alert>
-              )}
-              
-              {error && (
-                <Alert variant="danger" className="mb-4">
-                  {error}
-                </Alert>
-              )}
-              
-              <Form noValidate validated={validated} onSubmit={handleSubmit}>
-                <Form.Group className="mb-3" controlId="formEmail">
-                  <Form.Label>Correo electrónico</Form.Label>
-                  <Form.Control
-                    type="email"
-                    placeholder="Ingresa tu correo electrónico"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    disabled={isSubmitting}
-                  />
-                  <Form.Control.Feedback type="invalid">
-                    Por favor ingresa un correo electrónico válido.
-                  </Form.Control.Feedback>
-                </Form.Group>
-                
-                <div className="d-grid gap-2">
-                  <Button
-                    variant="primary"
-                    type="submit"
-                    disabled={isSubmitting}
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <Spinner
-                          as="span"
-                          animation="border"
-                          size="sm"
-                          role="status"
-                          aria-hidden="true"
-                          className="me-2"
-                        />
-                        Enviando...
-                      </>
-                    ) : (
-                      'Enviar instrucciones'
-                    )}
-                  </Button>
-                </div>
-              </Form>
-              
-              <div className="mt-4 text-center">
-                <div className="mb-2">
-                  <Link to="/login" className="text-decoration-none">
-                    <i className="bi bi-arrow-left me-1"></i> Volver a iniciar sesión
-                  </Link>
-                </div>
-                <div>
-                  ¿No tienes una cuenta? <Link to="/register" className="text-decoration-none">Regístrate</Link>
-                </div>
-              </div>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
-    </Container>
+    <div className="flex min-h-screen items-center justify-center bg-gray-100 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8 bg-white p-8 rounded-lg shadow-md">
+        <div>
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+            Recuperar Contraseña
+          </h2>
+          <p className="mt-2 text-center text-sm text-gray-600">
+            Ingresa tu correo electrónico y te enviaremos las instrucciones para restablecer tu contraseña
+          </p>
+        </div>
+        
+        {error && (
+          <Alert severity="error" className="mb-4">
+            {error}
+          </Alert>
+        )}
+        
+        {success ? (
+          <div className="text-center">
+            <Alert severity="success" className="mb-4">
+              Se han enviado las instrucciones a tu correo electrónico
+            </Alert>
+            <Link to="/auth/login" className="mt-4 inline-block text-blue-600 hover:text-blue-800">
+              Volver a iniciar sesión
+            </Link>
+          </div>
+        ) : (
+          <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+            <div>
+              <TextField
+                id="email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                required
+                fullWidth
+                label="Correo electrónico"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
+            
+            <div>
+              <Button
+                type="submit"
+                fullWidth
+                variant="contained"
+                color="primary"
+                disabled={loading}
+                className="py-2"
+              >
+                {loading ? <CircularProgress size={24} /> : 'Enviar instrucciones'}
+              </Button>
+            </div>
+            
+            <div className="text-center mt-4">
+              <Link to="/auth/login" className="text-sm text-blue-600 hover:text-blue-800">
+                Volver a iniciar sesión
+              </Link>
+            </div>
+          </form>
+        )}
+      </div>
+    </div>
   );
 };
 

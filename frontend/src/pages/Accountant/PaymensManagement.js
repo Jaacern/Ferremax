@@ -1,696 +1,579 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Row, Col, Card, Table, Badge, Button, Form, InputGroup, Tabs, Tab, Modal, Alert, Spinner } from 'react-bootstrap';
-import { useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
+import api from '../../services/api';
+import { 
+  Box, Typography, Paper, TextField, Button, 
+  Table, TableBody, TableCell, TableContainer, 
+  TableHead, TableRow, TablePagination, 
+  Alert, IconButton, Grid, FormControl,
+  InputLabel, Select, MenuItem, Chip,
+  Dialog, DialogActions, DialogContent, 
+  DialogTitle, List, ListItem, ListItemText,
+  Divider
+} from '@mui/material';
+import { 
+  Search, Visibility, CheckCircle, 
+  Cancel, MonetizationOn
+} from '@mui/icons-material';
 
 const PaymentsManagement = () => {
-  const navigate = useNavigate();
-  const [isLoading, setIsLoading] = useState(true);
+  const { user } = useSelector(state => state.auth);
   const [payments, setPayments] = useState([]);
-  const [filteredPayments, setFilteredPayments] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
-  // Estado para filtros
-  const [filter, setFilter] = useState({
-    search: '',
-    status: 'all',
-    method: 'all',
-    dateFrom: '',
-    dateTo: ''
+  // Estado para paginación y filtros
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [dateFilter, setDateFilter] = useState({
+    from: '',
+    to: ''
   });
   
-  // Estado para modal de confirmación
-  const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const [selectedPayment, setSelectedPayment] = useState(null);
-  const [confirmationData, setConfirmationData] = useState({
-    transactionId: '',
+  // Estado para modal de detalle de pago
+  const [openDetailModal, setOpenDetailModal] = useState(false);
+  const [currentPayment, setCurrentPayment] = useState(null);
+  
+  // Estado para modal de confirmación de transferencia
+  const [openConfirmModal, setOpenConfirmModal] = useState(false);
+  const [confirmFormData, setConfirmFormData] = useState({
+    payment_id: null,
+    transaction_id: '',
     notes: ''
   });
-  const [isProcessing, setIsProcessing] = useState(false);
   
-  // Cargar pagos
+  // Opciones de estado de pago
+  const paymentStatuses = [
+    { value: 'PENDING', label: 'Pendiente', color: 'warning' },
+    { value: 'PROCESSING', label: 'Procesando', color: 'info' },
+    { value: 'COMPLETED', label: 'Completado', color: 'success' },
+    { value: 'FAILED', label: 'Fallido', color: 'error' },
+    { value: 'REFUNDED', label: 'Reembolsado', color: 'secondary' },
+    { value: 'CANCELLED', label: 'Cancelado', color: 'default' }
+  ];
+  
+  // Opciones de método de pago
+  const paymentMethods = [
+    { value: 'CREDIT_CARD', label: 'Tarjeta de Crédito' },
+    { value: 'DEBIT_CARD', label: 'Tarjeta de Débito' },
+    { value: 'BANK_TRANSFER', label: 'Transferencia Bancaria' },
+    { value: 'CASH', label: 'Efectivo' }
+  ];
+
   useEffect(() => {
-    const loadPayments = async () => {
-      try {
-        // En una app real, aquí cargaríamos los pagos desde la API
-        await new Promise(r => setTimeout(r, 800));
-        
-        // Datos simulados
+    fetchPayments();
+  }, [page, rowsPerPage, statusFilter, dateFilter]);
+
+  const fetchPayments = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Aquí se haría la llamada a la API para obtener los pagos
+      // La ruta específica para listar todos los pagos no está clara en el backend
+      // Podría ser necesario implementar un endpoint dedicado para esto
+      
+      // Por ahora, simularemos los datos
+      setTimeout(() => {
         const mockPayments = [
           {
             id: 1,
-            order_id: 5001,
-            order_number: 'ORD-20250510-ABC123',
-            customer: { id: 101, name: 'María González' },
-            amount: 125000,
-            currency: 'CLP',
+            order_id: 1001,
+            order_number: 'ORD-20240515-ABC123',
             payment_method: 'BANK_TRANSFER',
             status: 'PENDING',
-            date: '2025-05-10T14:30:00Z'
+            amount: 56990,
+            currency: 'CLP',
+            created_at: '2024-05-15T10:30:00Z'
           },
           {
             id: 2,
-            order_id: 5002,
-            order_number: 'ORD-20250511-DEF456',
-            customer: { id: 102, name: 'Juan Pérez' },
-            amount: 298500,
-            currency: 'CLP',
+            order_id: 1002,
+            order_number: 'ORD-20240514-DEF456',
             payment_method: 'CREDIT_CARD',
             status: 'COMPLETED',
-            date: '2025-05-11T09:15:00Z'
+            amount: 142500,
+            currency: 'CLP',
+            transaction_id: 'TX-122334455',
+            payment_date: '2024-05-14T15:45:00Z',
+            created_at: '2024-05-14T15:40:00Z'
           },
           {
             id: 3,
-            order_id: 5003,
-            order_number: 'ORD-20250511-GHI789',
-            customer: { id: 103, name: 'Ana Martínez' },
-            amount: 156800,
-            currency: 'CLP',
-            payment_method: 'BANK_TRANSFER',
-            status: 'PENDING',
-            date: '2025-05-11T17:45:00Z'
-          },
-          {
-            id: 4,
-            order_id: 5004,
-            order_number: 'ORD-20250512-JKL012',
-            customer: { id: 104, name: 'Carlos Rodríguez' },
-            amount: 87900,
-            currency: 'CLP',
-            payment_method: 'DEBIT_CARD',
-            status: 'COMPLETED',
-            date: '2025-05-12T10:00:00Z'
-          },
-          {
-            id: 5,
-            order_id: 5005,
-            order_number: 'ORD-20250512-MNO345',
-            customer: { id: 105, name: 'Patricia Soto' },
-            amount: 345600,
-            currency: 'CLP',
-            payment_method: 'BANK_TRANSFER',
-            status: 'PENDING',
-            date: '2025-05-12T14:30:00Z'
-          },
-          {
-            id: 6,
-            order_id: 5006,
-            order_number: 'ORD-20250513-PQR678',
-            customer: { id: 106, name: 'Fernando López' },
-            amount: 215000,
-            currency: 'CLP',
-            payment_method: 'CREDIT_CARD',
-            status: 'COMPLETED',
-            date: '2025-05-13T11:20:00Z'
-          },
-          {
-            id: 7,
-            order_id: 5007,
-            order_number: 'ORD-20250513-STU901',
-            customer: { id: 107, name: 'Camila Díaz' },
-            amount: 78500,
-            currency: 'CLP',
+            order_id: 1003,
+            order_number: 'ORD-20240513-GHI789',
             payment_method: 'DEBIT_CARD',
             status: 'FAILED',
-            date: '2025-05-13T16:05:00Z'
-          },
-          {
-            id: 8,
-            order_id: 5008,
-            order_number: 'ORD-20250514-VWX234',
-            customer: { id: 108, name: 'Javier Morales' },
-            amount: 189600,
+            amount: 35990,
             currency: 'CLP',
-            payment_method: 'BANK_TRANSFER',
-            status: 'PENDING',
-            date: '2025-05-14T09:40:00Z'
+            created_at: '2024-05-13T11:20:00Z'
           },
-          {
-            id: 9,
-            order_id: 5009,
-            order_number: 'ORD-20250514-YZA567',
-            customer: { id: 109, name: 'Laura Muñoz' },
-            amount: 412300,
-            currency: 'CLP',
-            payment_method: 'CREDIT_CARD',
-            status: 'COMPLETED',
-            date: '2025-05-14T13:15:00Z'
-          },
-          {
-            id: 10,
-            order_id: 5010,
-            order_number: 'ORD-20250514-BCD890',
-            customer: { id: 110, name: 'Roberto Silva' },
-            amount: 67200,
-            currency: 'CLP',
-            payment_method: 'BANK_TRANSFER',
-            status: 'PENDING',
-            date: '2025-05-14T15:50:00Z'
-          }
         ];
         
         setPayments(mockPayments);
-        setFilteredPayments(mockPayments);
-        setIsLoading(false);
-      } catch (err) {
-        console.error('Error loading payments:', err);
-        setError('Error al cargar los pagos. Por favor, intenta nuevamente.');
-        setIsLoading(false);
-      }
-    };
-    
-    loadPayments();
-  }, []);
-  
-  // Filtrar pagos cuando cambian los filtros
-  useEffect(() => {
-    if (!payments.length) return;
-    
-    const result = payments.filter(payment => {
-      // Filtro de búsqueda en número de orden o cliente
-      const searchMatch = 
-        payment.order_number.toLowerCase().includes(filter.search.toLowerCase()) ||
-        payment.customer.name.toLowerCase().includes(filter.search.toLowerCase());
+        setLoading(false);
+      }, 1000);
       
-      // Filtro por estado
-      const statusMatch = 
-        filter.status === 'all' || 
-        payment.status.toLowerCase() === filter.status.toLowerCase();
-      
-      // Filtro por método de pago
-      const methodMatch = 
-        filter.method === 'all' || 
-        payment.payment_method.toLowerCase() === filter.method.toLowerCase();
-      
-      // Filtro por fechas
-      const dateMatch = 
-        (!filter.dateFrom || new Date(payment.date) >= new Date(filter.dateFrom)) &&
-        (!filter.dateTo || new Date(payment.date) <= new Date(filter.dateTo));
-      
-      return searchMatch && statusMatch && methodMatch && dateMatch;
-    });
-    
-    setFilteredPayments(result);
-  }, [filter, payments]);
-  
-  // Manejar cambio de filtros
-  const handleFilterChange = (e) => {
+    } catch (err) {
+      console.error('Error al cargar pagos:', err);
+      setError('No se pudieron cargar los pagos. Intente nuevamente.');
+      setLoading(false);
+    }
+  };
+
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    fetchPayments();
+  };
+
+  const handleDateFilterChange = (e) => {
     const { name, value } = e.target;
-    setFilter(prev => ({
-      ...prev,
+    setDateFilter({
+      ...dateFilter,
       [name]: value
-    }));
-  };
-  
-  // Limpiar filtros
-  const handleClearFilters = () => {
-    setFilter({
-      search: '',
-      status: 'all',
-      method: 'all',
-      dateFrom: '',
-      dateTo: ''
     });
   };
-  
-  // Abrir modal de confirmación
-  const handleConfirmPayment = (payment) => {
-    setSelectedPayment(payment);
-    setConfirmationData({
-      transactionId: '',
+
+  const handleViewPayment = (payment) => {
+    setCurrentPayment(payment);
+    setOpenDetailModal(true);
+  };
+
+  const handleCloseDetailModal = () => {
+    setOpenDetailModal(false);
+    setCurrentPayment(null);
+  };
+
+  const handleOpenConfirmModal = (payment) => {
+    setConfirmFormData({
+      payment_id: payment.id,
+      transaction_id: '',
       notes: ''
     });
-    setShowConfirmModal(true);
+    setOpenConfirmModal(true);
   };
-  
-  // Confirmar pago
-  const handleSubmitConfirmation = async () => {
-    if (!confirmationData.transactionId) {
-      alert('El ID de transacción es requerido');
+
+  const handleCloseConfirmModal = () => {
+    setOpenConfirmModal(false);
+    setConfirmFormData({
+      payment_id: null,
+      transaction_id: '',
+      notes: ''
+    });
+  };
+
+  const handleConfirmFormChange = (e) => {
+    const { name, value } = e.target;
+    setConfirmFormData({
+      ...confirmFormData,
+      [name]: value
+    });
+  };
+
+  const handleConfirmTransfer = async () => {
+    if (!confirmFormData.payment_id || !confirmFormData.transaction_id) {
+      setError('Debe ingresar el ID de transacción');
       return;
     }
     
-    setIsProcessing(true);
-    
     try {
-      // En una app real, aquí llamaríamos a la API para confirmar el pago
-      await new Promise(r => setTimeout(r, 1000));
+      setLoading(true);
+      setError(null);
       
-      // Actualizar lista localmente para simular respuesta
-      const updatedPayments = payments.map(payment => 
-        payment.id === selectedPayment.id 
-          ? { ...payment, status: 'COMPLETED' } 
-          : payment
-      );
+      await api.post('/payments/confirm-transfer', confirmFormData);
       
-      setPayments(updatedPayments);
+      // Cerrar modal y actualizar lista
+      handleCloseConfirmModal();
+      fetchPayments();
       
-      // Cerrar modal
-      setShowConfirmModal(false);
-      setIsProcessing(false);
-      setSelectedPayment(null);
-      
-      // Mensaje de éxito
-      alert('Pago confirmado correctamente');
     } catch (err) {
-      console.error('Error confirming payment:', err);
-      setIsProcessing(false);
-      alert('Error al confirmar el pago. Por favor, intenta nuevamente.');
+      console.error('Error al confirmar transferencia:', err);
+      setError(err.response?.data?.error || 'Error al confirmar la transferencia');
+    } finally {
+      setLoading(false);
     }
   };
-  
+
+  const handleCancelPayment = async (paymentId) => {
+    if (!window.confirm('¿Está seguro que desea cancelar este pago?')) {
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      setError(null);
+      
+      await api.put(`/payments/cancel/${paymentId}`, {
+        notes: 'Cancelado por el contador'
+      });
+      
+      // Actualizar lista
+      fetchPayments();
+      
+    } catch (err) {
+      console.error('Error al cancelar pago:', err);
+      setError('No se pudo cancelar el pago. Intente nuevamente.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Renderizar chip de estado
+  const renderStatusChip = (status) => {
+    const statusInfo = paymentStatuses.find(s => s.value === status) || 
+      { label: status, color: 'default' };
+    
+    return (
+      <Chip 
+        label={statusInfo.label} 
+        color={statusInfo.color}
+        size="small"
+      />
+    );
+  };
+
+  // Formatear método de pago
+  const formatPaymentMethod = (method) => {
+    const methodInfo = paymentMethods.find(m => m.value === method);
+    return methodInfo ? methodInfo.label : method;
+  };
+
   // Formatear fecha
   const formatDate = (dateString) => {
-    const options = { 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    };
-    return new Date(dateString).toLocaleDateString('es-CL', options);
+    if (!dateString) return '';
+    
+    const date = new Date(dateString);
+    return new Intl.DateTimeFormat('es-CL', {
+      dateStyle: 'medium',
+      timeStyle: 'short'
+    }).format(date);
   };
-  
-  // Formatear moneda
+
+  // Formatear monto
   const formatCurrency = (amount, currency = 'CLP') => {
     return new Intl.NumberFormat('es-CL', {
       style: 'currency',
       currency: currency
     }).format(amount);
   };
-  
-  // Renderizar badge según estado
-  const renderStatusBadge = (status) => {
-    switch (status) {
-      case 'COMPLETED':
-        return <Badge bg="success">Completado</Badge>;
-      case 'PENDING':
-        return <Badge bg="warning" text="dark">Pendiente</Badge>;
-      case 'FAILED':
-        return <Badge bg="danger">Fallido</Badge>;
-      case 'PROCESSING':
-        return <Badge bg="info">Procesando</Badge>;
-      case 'REFUNDED':
-        return <Badge bg="secondary">Reembolsado</Badge>;
-      default:
-        return <Badge bg="secondary">{status}</Badge>;
-    }
-  };
-  
-  // Renderizar nombre de método de pago
-  const renderPaymentMethod = (method) => {
-    switch (method) {
-      case 'CREDIT_CARD':
-        return 'Tarjeta de crédito';
-      case 'DEBIT_CARD':
-        return 'Tarjeta de débito';
-      case 'BANK_TRANSFER':
-        return 'Transferencia bancaria';
-      default:
-        return method;
-    }
-  };
-  
-  // Renderizar carga
-  if (isLoading) {
+
+  if (!user || user.role !== 'accountant') {
     return (
-      <Container className="py-4">
-        <div className="text-center py-5">
-          <div className="spinner-border text-primary" role="status">
-            <span className="visually-hidden">Cargando...</span>
-          </div>
-          <p className="mt-3">Cargando información de pagos...</p>
-        </div>
-      </Container>
-    );
-  }
-  
-  // Renderizar error
-  if (error) {
-    return (
-      <Container className="py-4">
-        <Alert variant="danger">
-          <Alert.Heading>Error</Alert.Heading>
-          <p>{error}</p>
+      <Box p={3}>
+        <Alert severity="error">
+          No tiene permisos para acceder a esta página
         </Alert>
-      </Container>
+      </Box>
     );
   }
-  
+
   return (
-    <Container fluid className="py-4">
-      <h1 className="mb-4">Gestión de Pagos</h1>
+    <Box p={3}>
+      <Typography variant="h4" gutterBottom component="h1">
+        Gestión de Pagos
+      </Typography>
       
-      {/* Filtros */}
-      <Card className="mb-4">
-        <Card.Body>
-          <h5 className="mb-3">Filtros</h5>
-          <Row>
-            <Col md={3}>
-              <Form.Group className="mb-3">
-                <Form.Label>Buscar</Form.Label>
-                <InputGroup>
-                  <InputGroup.Text>
-                    <i className="bi bi-search"></i>
-                  </InputGroup.Text>
-                  <Form.Control
-                    type="text"
-                    placeholder="Orden o cliente..."
-                    name="search"
-                    value={filter.search}
-                    onChange={handleFilterChange}
-                  />
-                </InputGroup>
-              </Form.Group>
-            </Col>
-            
-            <Col md={2}>
-              <Form.Group className="mb-3">
-                <Form.Label>Estado</Form.Label>
-                <Form.Select
-                  name="status"
-                  value={filter.status}
-                  onChange={handleFilterChange}
-                >
-                  <option value="all">Todos</option>
-                  <option value="completed">Completados</option>
-                  <option value="pending">Pendientes</option>
-                  <option value="failed">Fallidos</option>
-                </Form.Select>
-              </Form.Group>
-            </Col>
-            
-            <Col md={3}>
-              <Form.Group className="mb-3">
-                <Form.Label>Método de pago</Form.Label>
-                <Form.Select
-                  name="method"
-                  value={filter.method}
-                  onChange={handleFilterChange}
-                >
-                  <option value="all">Todos</option>
-                  <option value="credit_card">Tarjeta de crédito</option>
-                  <option value="debit_card">Tarjeta de débito</option>
-                  <option value="bank_transfer">Transferencia bancaria</option>
-                </Form.Select>
-              </Form.Group>
-            </Col>
-            
-            <Col md={2}>
-              <Form.Group className="mb-3">
-                <Form.Label>Desde</Form.Label>
-                <Form.Control
-                  type="date"
-                  name="dateFrom"
-                  value={filter.dateFrom}
-                  onChange={handleFilterChange}
-                />
-              </Form.Group>
-            </Col>
-            
-            <Col md={2}>
-              <Form.Group className="mb-3">
-                <Form.Label>Hasta</Form.Label>
-                <Form.Control
-                  type="date"
-                  name="dateTo"
-                  value={filter.dateTo}
-                  onChange={handleFilterChange}
-                />
-              </Form.Group>
-            </Col>
-          </Row>
+      {error && (
+        <Alert severity="error" className="mb-4">
+          {error}
+        </Alert>
+      )}
+      
+      {/* Filtros y búsqueda */}
+      <Paper elevation={2} sx={{ p: 2, mb: 3 }}>
+        <Grid container spacing={2} alignItems="center">
+          <Grid item xs={12} sm={4} md={3}>
+            <form onSubmit={handleSearchSubmit}>
+              <TextField
+                fullWidth
+                label="Buscar pagos"
+                variant="outlined"
+                size="small"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Nº Pedido, ID Transacción"
+                InputProps={{
+                  endAdornment: (
+                    <IconButton type="submit" edge="end">
+                      <Search />
+                    </IconButton>
+                  ),
+                }}
+              />
+            </form>
+          </Grid>
           
-          <div className="text-end">
+          <Grid item xs={12} sm={4} md={2}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Estado</InputLabel>
+              <Select
+                value={statusFilter}
+                label="Estado"
+                onChange={(e) => setStatusFilter(e.target.value)}
+              >
+                <MenuItem value="">Todos</MenuItem>
+                {paymentStatuses.map((status) => (
+                  <MenuItem key={status.value} value={status.value}>
+                    {status.label}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+          
+          <Grid item xs={12} sm={4} md={2}>
+            <TextField
+              fullWidth
+              label="Desde"
+              type="date"
+              name="from"
+              value={dateFilter.from}
+              onChange={handleDateFilterChange}
+              size="small"
+              InputLabelProps={{ shrink: true }}
+            />
+          </Grid>
+          
+          <Grid item xs={12} sm={4} md={2}>
+            <TextField
+              fullWidth
+              label="Hasta"
+              type="date"
+              name="to"
+              value={dateFilter.to}
+              onChange={handleDateFilterChange}
+              size="small"
+              InputLabelProps={{ shrink: true }}
+            />
+          </Grid>
+          
+          <Grid item xs={12} sm={4} md={3} textAlign="right">
             <Button
-              variant="outline-secondary"
-              onClick={handleClearFilters}
-              className="me-2"
+              variant="contained"
+              color="primary"
+              onClick={fetchPayments}
             >
-              Limpiar filtros
+              Filtrar
             </Button>
-            <Button
-              variant="primary"
-              onClick={() => {/* Aquí podría ir una acción adicional al aplicar filtros */}}
-            >
-              Aplicar filtros
-            </Button>
-          </div>
-        </Card.Body>
-      </Card>
+          </Grid>
+        </Grid>
+      </Paper>
       
-      {/* Pestañas de pagos */}
-      <Tabs 
-        defaultActiveKey="all" 
-        id="payment-tabs"
-        className="mb-3"
-      >
-        <Tab eventKey="all" title="Todos los pagos">
-          <Card>
-            <Card.Body>
-              {filteredPayments.length > 0 ? (
-                <div className="table-responsive">
-                  <Table hover>
-                    <thead>
-                      <tr>
-                        <th>Orden</th>
-                        <th>Cliente</th>
-                        <th>Método</th>
-                        <th>Monto</th>
-                        <th>Fecha</th>
-                        <th>Estado</th>
-                        <th className="text-end">Acciones</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredPayments.map(payment => (
-                        <tr key={payment.id}>
-                          <td>{payment.order_number}</td>
-                          <td>{payment.customer.name}</td>
-                          <td>{renderPaymentMethod(payment.payment_method)}</td>
-                          <td>{formatCurrency(payment.amount, payment.currency)}</td>
-                          <td>{formatDate(payment.date)}</td>
-                          <td>{renderStatusBadge(payment.status)}</td>
-                          <td className="text-end">
-                            <Button
-                              variant="outline-primary"
-                              size="sm"
-                              className="me-2"
-                              onClick={() => navigate(`/accountant/orders/${payment.order_id}`)}
-                            >
-                              <i className="bi bi-eye"></i> Ver orden
-                            </Button>
-                            
-                            {payment.status === 'PENDING' && payment.payment_method === 'BANK_TRANSFER' && (
-                              <Button
-                                variant="success"
-                                size="sm"
-                                onClick={() => handleConfirmPayment(payment)}
-                              >
-                                <i className="bi bi-check-circle"></i> Confirmar
-                              </Button>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </Table>
-                </div>
+      {/* Tabla de pagos */}
+      <Paper elevation={2}>
+        <TableContainer>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>Nº Pedido</TableCell>
+                <TableCell>Método</TableCell>
+                <TableCell>Monto</TableCell>
+                <TableCell>Fecha</TableCell>
+                <TableCell>ID Transacción</TableCell>
+                <TableCell>Estado</TableCell>
+                <TableCell align="center">Acciones</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {loading && page === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} align="center">
+                    Cargando pagos...
+                  </TableCell>
+                </TableRow>
+              ) : payments.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} align="center">
+                    No se encontraron pagos
+                  </TableCell>
+                </TableRow>
               ) : (
-                <Alert variant="info">
-                  No se encontraron pagos con los filtros actuales.
-                </Alert>
+                payments.map((payment) => (
+                  <TableRow key={payment.id}>
+                    <TableCell>{payment.order_number}</TableCell>
+                    <TableCell>{formatPaymentMethod(payment.payment_method)}</TableCell>
+                    <TableCell>{formatCurrency(payment.amount, payment.currency)}</TableCell>
+                    <TableCell>{formatDate(payment.created_at)}</TableCell>
+                    <TableCell>{payment.transaction_id || '—'}</TableCell>
+                    <TableCell>{renderStatusChip(payment.status)}</TableCell>
+                    <TableCell align="center">
+                      <IconButton 
+                        color="primary"
+                        onClick={() => handleViewPayment(payment)}
+                        title="Ver detalles"
+                      >
+                        <Visibility />
+                      </IconButton>
+                      
+                      {payment.payment_method === 'BANK_TRANSFER' && payment.status === 'PENDING' && (
+                        <IconButton
+                          color="success"
+                          onClick={() => handleOpenConfirmModal(payment)}
+                          title="Confirmar transferencia"
+                        >
+                          <CheckCircle />
+                        </IconButton>
+                      )}
+                      
+                      {payment.status === 'PENDING' && (
+                        <IconButton
+                          color="error"
+                          onClick={() => handleCancelPayment(payment.id)}
+                          title="Cancelar pago"
+                        >
+                          <Cancel />
+                        </IconButton>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))
               )}
-            </Card.Body>
-          </Card>
-        </Tab>
+            </TableBody>
+          </Table>
+        </TableContainer>
         
-        <Tab eventKey="pending" title="Pendientes">
-          <Card>
-            <Card.Body>
-              {filteredPayments.filter(p => p.status === 'PENDING').length > 0 ? (
-                <div className="table-responsive">
-                  <Table hover>
-                    <thead>
-                      <tr>
-                        <th>Orden</th>
-                        <th>Cliente</th>
-                        <th>Método</th>
-                        <th>Monto</th>
-                        <th>Fecha</th>
-                        <th className="text-end">Acciones</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredPayments
-                        .filter(p => p.status === 'PENDING')
-                        .map(payment => (
-                          <tr key={payment.id}>
-                            <td>{payment.order_number}</td>
-                            <td>{payment.customer.name}</td>
-                            <td>{renderPaymentMethod(payment.payment_method)}</td>
-                            <td>{formatCurrency(payment.amount, payment.currency)}</td>
-                            <td>{formatDate(payment.date)}</td>
-                            <td className="text-end">
-                              <Button
-                                variant="outline-primary"
-                                size="sm"
-                                className="me-2"
-                                onClick={() => navigate(`/accountant/orders/${payment.order_id}`)}
-                              >
-                                <i className="bi bi-eye"></i> Ver orden
-                              </Button>
-                              
-                              {payment.payment_method === 'BANK_TRANSFER' && (
-                                <Button
-                                  variant="success"
-                                  size="sm"
-                                  onClick={() => handleConfirmPayment(payment)}
-                                >
-                                  <i className="bi bi-check-circle"></i> Confirmar
-                                </Button>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                    </tbody>
-                  </Table>
-                </div>
-              ) : (
-                <Alert variant="info">
-                  No hay pagos pendientes.
-                </Alert>
-              )}
-            </Card.Body>
-          </Card>
-        </Tab>
-        
-        <Tab eventKey="completed" title="Completados">
-          <Card>
-            <Card.Body>
-              {filteredPayments.filter(p => p.status === 'COMPLETED').length > 0 ? (
-                <div className="table-responsive">
-                  <Table hover>
-                    <thead>
-                      <tr>
-                        <th>Orden</th>
-                        <th>Cliente</th>
-                        <th>Método</th>
-                        <th>Monto</th>
-                        <th>Fecha</th>
-                        <th className="text-end">Acciones</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredPayments
-                        .filter(p => p.status === 'COMPLETED')
-                        .map(payment => (
-                          <tr key={payment.id}>
-                            <td>{payment.order_number}</td>
-                            <td>{payment.customer.name}</td>
-                            <td>{renderPaymentMethod(payment.payment_method)}</td>
-                            <td>{formatCurrency(payment.amount, payment.currency)}</td>
-                            <td>{formatDate(payment.date)}</td>
-                            <td className="text-end">
-                              <Button
-                                variant="outline-primary"
-                                size="sm"
-                                onClick={() => navigate(`/accountant/orders/${payment.order_id}`)}
-                              >
-                                <i className="bi bi-eye"></i> Ver orden
-                              </Button>
-                            </td>
-                          </tr>
-                        ))}
-                    </tbody>
-                  </Table>
-                </div>
-              ) : (
-                <Alert variant="info">
-                  No hay pagos completados con los filtros actuales.
-                </Alert>
-              )}
-            </Card.Body>
-          </Card>
-        </Tab>
-      </Tabs>
+        <TablePagination
+          rowsPerPageOptions={[5, 10, 25, 50]}
+          component="div"
+          count={-1} // No conocemos el total exacto desde la API
+          rowsPerPage={rowsPerPage}
+          page={page}
+          onPageChange={handleChangePage}
+          onRowsPerPageChange={handleChangeRowsPerPage}
+          labelDisplayedRows={({ from, to }) => `${from}-${to}`}
+        />
+      </Paper>
       
-      {/* Modal de confirmación de pago */}
-      <Modal show={showConfirmModal} onHide={() => setShowConfirmModal(false)}>
-        <Modal.Header closeButton>
-          <Modal.Title>Confirmar pago</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          {selectedPayment && (
-            <div>
-              <Alert variant="info">
-                <p className="mb-1"><strong>Orden:</strong> {selectedPayment.order_number}</p>
-                <p className="mb-1"><strong>Cliente:</strong> {selectedPayment.customer.name}</p>
-                <p className="mb-0"><strong>Monto:</strong> {formatCurrency(selectedPayment.amount, selectedPayment.currency)}</p>
-              </Alert>
-              
-              <Form>
-                <Form.Group className="mb-3">
-                  <Form.Label>ID de transacción <span className="text-danger">*</span></Form.Label>
-                  <Form.Control
-                    type="text"
-                    required
-                    value={confirmationData.transactionId}
-                    onChange={(e) => setConfirmationData({
-                      ...confirmationData,
-                      transactionId: e.target.value
-                    })}
-                    placeholder="Ingrese ID de transferencia"
-                  />
-                  <Form.Text className="text-muted">
-                    Ingrese el ID o número de transferencia bancaria.
-                  </Form.Text>
-                </Form.Group>
-                
-                <Form.Group className="mb-3">
-                  <Form.Label>Notas</Form.Label>
-                  <Form.Control
-                    as="textarea"
-                    rows={3}
-                    value={confirmationData.notes}
-                    onChange={(e) => setConfirmationData({
-                      ...confirmationData,
-                      notes: e.target.value
-                    })}
-                    placeholder="Notas adicionales"
-                  />
-                </Form.Group>
-              </Form>
-            </div>
+      {/* Modal de detalle de pago */}
+      <Dialog open={openDetailModal} onClose={handleCloseDetailModal} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          Detalle del Pago
+        </DialogTitle>
+        <DialogContent>
+          {!currentPayment ? (
+            <Box sx={{ textAlign: 'center', py: 2 }}>
+              Cargando detalles...
+            </Box>
+          ) : (
+            <List>
+              <ListItem divider>
+                <ListItemText primary="Nº Pedido" secondary={currentPayment.order_number} />
+              </ListItem>
+              <ListItem divider>
+                <ListItemText primary="Método de Pago" secondary={formatPaymentMethod(currentPayment.payment_method)} />
+              </ListItem>
+              <ListItem divider>
+                <ListItemText primary="Monto" secondary={formatCurrency(currentPayment.amount, currentPayment.currency)} />
+              </ListItem>
+              <ListItem divider>
+                <ListItemText primary="Estado" secondary={renderStatusChip(currentPayment.status)} />
+              </ListItem>
+              <ListItem divider>
+                <ListItemText primary="Fecha de Creación" secondary={formatDate(currentPayment.created_at)} />
+              </ListItem>
+              <ListItem divider>
+                <ListItemText primary="Fecha de Pago" secondary={formatDate(currentPayment.payment_date) || '—'} />
+              </ListItem>
+              <ListItem divider>
+                <ListItemText primary="ID de Transacción" secondary={currentPayment.transaction_id || '—'} />
+              </ListItem>
+              <ListItem>
+                <ListItemText primary="Notas" secondary={currentPayment.notes || '—'} />
+              </ListItem>
+            </List>
           )}
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowConfirmModal(false)} disabled={isProcessing}>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDetailModal}>Cerrar</Button>
+          
+          {currentPayment && currentPayment.payment_method === 'BANK_TRANSFER' && currentPayment.status === 'PENDING' && (
+            <Button 
+              variant="contained" 
+              color="success"
+              startIcon={<CheckCircle />}
+              onClick={() => {
+                handleCloseDetailModal();
+                handleOpenConfirmModal(currentPayment);
+              }}
+            >
+              Confirmar Transferencia
+            </Button>
+          )}
+          
+          {currentPayment && currentPayment.status === 'PENDING' && (
+            <Button 
+              variant="contained" 
+              color="error"
+              startIcon={<Cancel />}
+              onClick={() => {
+                handleCloseDetailModal();
+                handleCancelPayment(currentPayment.id);
+              }}
+            >
+              Cancelar Pago
+            </Button>
+          )}
+        </DialogActions>
+      </Dialog>
+      
+      {/* Modal de confirmación de transferencia */}
+      <Dialog open={openConfirmModal} onClose={handleCloseConfirmModal} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          Confirmar Transferencia Bancaria
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ pt: 1 }}>
+            <TextField
+              fullWidth
+              label="ID de Transacción"
+              name="transaction_id"
+              value={confirmFormData.transaction_id}
+              onChange={handleConfirmFormChange}
+              required
+              margin="normal"
+              placeholder="Ej: 123456789"
+            />
+            
+            <TextField
+              fullWidth
+              label="Notas (opcional)"
+              name="notes"
+              value={confirmFormData.notes}
+              onChange={handleConfirmFormChange}
+              margin="normal"
+              multiline
+              rows={3}
+              placeholder="Información adicional sobre la transferencia"
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseConfirmModal}>
             Cancelar
           </Button>
           <Button 
-            variant="success" 
-            onClick={handleSubmitConfirmation}
-            disabled={!confirmationData.transactionId || isProcessing}
+            variant="contained" 
+            color="primary"
+            startIcon={<MonetizationOn />}
+            onClick={handleConfirmTransfer}
+            disabled={!confirmFormData.transaction_id || loading}
           >
-            {isProcessing ? (
-              <>
-                <Spinner
-                  as="span"
-                  animation="border"
-                  size="sm"
-                  role="status"
-                  aria-hidden="true"
-                  className="me-2"
-                />
-                Procesando...
-              </>
-            ) : (
-              'Confirmar pago'
-            )}
+            Confirmar Pago
           </Button>
-        </Modal.Footer>
-      </Modal>
-    </Container>
+        </DialogActions>
+      </Dialog>
+    </Box>
   );
 };
 
