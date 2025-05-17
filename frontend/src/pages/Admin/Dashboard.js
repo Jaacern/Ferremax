@@ -14,6 +14,9 @@ import {
   Tooltip, 
   Legend 
 } from 'chart.js';
+import { toast, ToastContainer } from 'react-toastify';
+import notificationService from '../../services/notification.service'; // ajusta la ruta si es distinta
+import 'react-toastify/dist/ReactToastify.css';
 
 // Registrar componentes de Chart.js
 ChartJS.register(
@@ -41,6 +44,18 @@ const AdminDashboard = () => {
   
   // Cargar datos simulados
   useEffect(() => {
+
+    const unsubscribe = notificationService.subscribe('stock_alert', (data) => {
+    toast.warn(`⚠️ ${data.message}`, {
+      position: 'bottom-right',
+      autoClose: 6000,
+      hideProgressBar: false,
+      closeOnClick: true,
+      pauseOnHover: true,
+      draggable: true
+      });
+    });
+    
     // Simular carga de datos (en una app real, esto sería una llamada a la API)
     const loadData = async () => {
       setIsLoading(true);
@@ -60,6 +75,8 @@ const AdminDashboard = () => {
     };
     
     loadData();
+
+    return () => unsubscribe(); 
   }, []);
   
   // Datos para gráfico de ventas
@@ -382,6 +399,8 @@ const AdminDashboard = () => {
           </Card>
         </Col>
       </Row>
+
+      <ToastContainer />
     </Container>
   );
 };

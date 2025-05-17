@@ -1,11 +1,11 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from sqlalchemy import and_, or_, func
-
 from app import db, sse
 from models.product import Product, Stock, Branch
 from models.user import UserRole
 from utils.auth_utils import admin_required, role_required, has_role
+from services.notification_service import NotificationService
 
 stock_bp = Blueprint('stock', __name__)
 
@@ -113,28 +113,25 @@ def update_stock(stock_id):
     
     try:
         old_quantity = stock.quantity
-        stock.quantity = data['quantity']
+        stock.quantity = int(data['quantity'])
         
         # Actualizar stock mínimo si se proporciona
         if 'min_stock' in data:
-            stock.min_stock = data['min_stock']
+            stock.min_stock = int(data['min_stock']) 
         
         # Verificar si el stock está bajo mínimo
         if stock.quantity <= stock.min_stock:
-            # Enviar notificación SSE
             product = Product.query.get(stock.product_id)
             branch = Branch.query.get(stock.branch_id)
-            
-            if product and branch:
-                sse.publish({
-                    "product_id": product.id,
-                    "product_name": product.name,
-                    "branch_id": branch.id,
-                    "branch_name": branch.name,
-                    "current_stock": stock.quantity,
-                    "min_stock": stock.min_stock,
-                    "message": f"Stock bajo en {product.name} ({branch.name})"
-                }, type='stock_alert')
+        if product and branch:
+            NotificationService.send_stock_alert(
+                product_id=product.id,
+                product_name=product.name,
+                branch_id=branch.id,
+                branch_name=branch.name,
+                current_stock=stock.quantity,
+                min_stock=stock.min_stock
+        )
         
         # Verificar si el stock está agotado
         if stock.quantity <= 0:
@@ -461,3 +458,28 @@ def initialize_stock():
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
+    
+@stock_bp.route('/<int:stock_id>', methods=['GET', 'OPTIONS'])
+@jwt_required()
+def get_stock_by_id(stock_id):
+    """Obtener un stock específico por ID"""
+    stock = Stock.query.get(stock_id)
+    if not stock:
+        return jsonify({"error": "Stock no encontrado"}), 404
+
+    product = Product.query.get(stock.product_id)
+    branch = Branch.query.get(stock.branch_id)
+
+    return jsonify({
+        "id": stock.id,
+        "product_id": stock.product_id,
+        "product_name": product.name if product else None,
+        "product_sku": product.sku if product else None,
+        "branch_id": stock.branch_id,
+        "branch_name": branch.name if branch else None,
+        "quantity": stock.quantity,
+        "min_stock": stock.min_stock,
+        "is_low_stock": stock.quantity <= stock.min_stock,
+        "is_out_of_stock": stock.quantity <= 0,
+        "updated_at": stock.updated_at.isoformat() if stock.updated_at else None
+    }), 200

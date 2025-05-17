@@ -29,7 +29,7 @@ import ProductManagement from './pages/Admin/ProductManagement';
 import UserManagement from './pages/Admin/UserManagement';
 import OrderManagement from './pages/Admin/OrderManagement';
 import BranchManagement from './pages/Admin/BranchManagement';
-import AdminStockPage from './pages/Admin/AdminStockPage';   // <-- NUEVO IMPORT
+import AdminStockPage from './pages/Admin/AdminStockPage';  
 
 function App() {
   return (

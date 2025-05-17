@@ -140,7 +140,7 @@ const stockService = {
   getStockById: async (stockId) => {
     try {
       const response = await api.get(`/stock/${stockId}`);
-      return response.data.stock; // Assuming backend returns { stock: { ... } }
+      return response.data
     } catch (error) {
       console.error('Error fetching stock by ID:', error);
       throw error;

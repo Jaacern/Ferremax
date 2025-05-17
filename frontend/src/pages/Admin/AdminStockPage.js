@@ -17,7 +17,7 @@ const AdminStockPage = () => {
   // Modales
   const [showEditModal, setShowEditModal] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
-  const [currentStock, setCurrentStock] = useState(null);
+  const [currentStockId, setCurrentStockId] = useState(null);
 
   /* ---------------------------------------------------------------- */
   /* EFECTOS */
@@ -42,21 +42,22 @@ const AdminStockPage = () => {
     }
   };
 
-  const handleOpenEdit = (stock) => {
-    setCurrentStock(stock);
+  const handleOpenEdit = (stockId) => {
+    setCurrentStockId(stockId);
     setShowEditModal(true);
   };
 
-  const handleOpenTransfer = (stock) => {
-    setCurrentStock(stock);
+  const handleOpenTransfer = (stockId) => {
+    setCurrentStockId(stockId);
     setShowTransferModal(true);
   };
 
   const handleCloseModals = () => {
     setShowEditModal(false);
     setShowTransferModal(false);
-    setCurrentStock(null);
+    setCurrentStockId(null);
   };
+
 
   const handleSaveStock = async (updated) => {
     await fetchStocks();
@@ -99,23 +100,30 @@ const AdminStockPage = () => {
       {/* ------- Modal editar / actualizar stock ------- */}
       <Modal show={showEditModal} onHide={handleCloseModals} size="lg" backdrop="static">
         <Modal.Header closeButton>
-          <Modal.Title>{currentStock ? "Actualizar Stock" : "Agregar Stock"}</Modal.Title>
+          <Modal.Title>Actualizar Stock</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          {currentStock && (
-            <StockForm stockId={currentStock.id} onSuccess={handleSaveStock} onCancel={handleCloseModals} />
+          {currentStockId && (
+            <StockForm
+              stockId={currentStockId}
+              onSuccess={handleSaveStock}
+              onCancel={handleCloseModals}
+            />
           )}
         </Modal.Body>
       </Modal>
 
-      {/* ------- Modal transferir stock -------- */}
       <Modal show={showTransferModal} onHide={handleCloseModals} size="lg" backdrop="static">
         <Modal.Header closeButton>
           <Modal.Title>Transferir Stock</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          {currentStock && (
-            <StockTransferForm stockId={currentStock} onSuccess={handleSaveStock} onCancel={handleCloseModals} />
+          {currentStockId && (
+            <StockTransferForm
+              stockId={currentStockId}
+              onSuccess={handleSaveStock}
+              onCancel={handleCloseModals}
+            />
           )}
         </Modal.Body>
       </Modal>
