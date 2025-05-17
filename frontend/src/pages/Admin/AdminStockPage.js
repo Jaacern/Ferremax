@@ -86,10 +86,11 @@ const AdminStockPage = () => {
             </div>
           ) : (
             <StockTable
-              stocks={stocks}
-              onRefresh={fetchStocks}
-              onEdit={handleOpenEdit}
-              onTransfer={handleOpenTransfer}
+            stocks={stocks}
+            isLoading={isLoading}
+            error={error}
+            onUpdate={handleOpenEdit}     
+            onTransfer={handleOpenTransfer}
             />
           )}
         </Card.Body>
@@ -102,7 +103,7 @@ const AdminStockPage = () => {
         </Modal.Header>
         <Modal.Body>
           {currentStock && (
-            <StockForm stock={currentStock} onSaved={handleSaveStock} onCancel={handleCloseModals} />
+            <StockForm stockId={currentStock.id} onSuccess={handleSaveStock} onCancel={handleCloseModals} />
           )}
         </Modal.Body>
       </Modal>
@@ -114,7 +115,7 @@ const AdminStockPage = () => {
         </Modal.Header>
         <Modal.Body>
           {currentStock && (
-            <StockTransferForm stock={currentStock} onTransferred={handleSaveStock} onCancel={handleCloseModals} />
+            <StockTransferForm stockId={currentStock} onSuccess={handleSaveStock} onCancel={handleCloseModals} />
           )}
         </Modal.Body>
       </Modal>

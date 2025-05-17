@@ -130,7 +130,23 @@ const stockService = {
       console.error('Error bulk updating stock:', error);
       throw error;
     }
+  },
+
+    /**
+   * Obtener stock por ID
+   * @param {number} stockId - ID del stock
+   * @returns {Promise} - Promesa con los datos del stock
+   */
+  getStockById: async (stockId) => {
+    try {
+      const response = await api.get(`/stock/${stockId}`);
+      return response.data.stock; // Assuming backend returns { stock: { ... } }
+    } catch (error) {
+      console.error('Error fetching stock by ID:', error);
+      throw error;
+    }
   }
+
 };
 
 export default stockService;

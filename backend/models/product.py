@@ -62,7 +62,7 @@ class Product(db.Model):
             'brand_code': self.brand_code,
             'category': self.category.value,
             'subcategory': self.subcategory,
-            'price': float(self.price),
+            "price": float(self.price) if self.price is not None else None,
             'current_price': self.current_price(),
             'discount_percentage': self.discount_percentage,
             'is_featured': self.is_featured,

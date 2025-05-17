@@ -68,7 +68,7 @@ def get_products():
     pagination = query.paginate(page=page, per_page=per_page)
     
     # Preparar respuesta
-    products = [product.to_api_dict() for product in pagination.items]
+    products = [product.to_dict() for product in pagination.items]
     
     return jsonify({
         "products": products
@@ -203,6 +203,18 @@ def create_product():
         db.session.add(new_product)
         db.session.flush()
         
+        if 'stocks' not in data:
+            branches = Branch.query.all()
+            for br in branches:
+                db.session.add(
+                    Stock(
+                        product_id=new_product.id,
+                        branch_id=br.id,
+                        quantity=5,
+                        min_stock=5
+                    )
+                )
+
         # Guardar precio inicial en historial
         price_history = PriceHistory(
             product_id=new_product.id,

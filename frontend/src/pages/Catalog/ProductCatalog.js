@@ -16,12 +16,22 @@ import {
 } from '../../store/product.slice';
 
 const ProductCatalog = () => {
+
+  const defaultPagination = {
+    page: 1,
+    pages: 1,
+    total: 0,
+    per_page: 12,
+    has_next: false,
+    has_prev: false,
+  };
+
   const dispatch = useDispatch();
   const location = useLocation();
   const navigate = useNavigate();
   
   const products = useSelector(selectProducts);
-  const pagination = useSelector(selectPagination);
+  const pagination = useSelector(selectPagination) || defaultPagination;
   const isLoading = useSelector(selectIsLoading);
   const error = useSelector(selectError);
   const filters = useSelector(selectFilters);

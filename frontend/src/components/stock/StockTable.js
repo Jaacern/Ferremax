@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Table, Button, Badge, Form, InputGroup, Row, Col, Card, Alert } from 'react-bootstrap';
+import PropTypes from 'prop-types';
 import { useNavigate } from 'react-router-dom';
 
 const StockTable = ({ stocks, isLoading, error, onUpdate, onTransfer }) => {
@@ -254,6 +255,19 @@ const StockTable = ({ stocks, isLoading, error, onUpdate, onTransfer }) => {
       </div>
     </div>
   );
+};
+
+StockTable.defaultProps = {
+  onUpdate: () => {},        // NO-OP -> nunca será undefined
+  onTransfer: () => {}
+};
+
+StockTable.propTypes = {
+  stocks:       PropTypes.array.isRequired,
+  isLoading:    PropTypes.bool,
+  error:        PropTypes.string,
+  onUpdate:     PropTypes.func,
+  onTransfer:   PropTypes.func
 };
 
 export default StockTable;
