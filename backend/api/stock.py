@@ -123,16 +123,18 @@ def update_stock(stock_id):
         if stock.quantity <= stock.min_stock:
             product = Product.query.get(stock.product_id)
             branch = Branch.query.get(stock.branch_id)
-        if product and branch:
-            NotificationService.send_stock_alert(
-                product_id=product.id,
-                product_name=product.name,
-                branch_id=branch.id,
-                branch_name=branch.name,
-                current_stock=stock.quantity,
-                min_stock=stock.min_stock
-        )
-        
+
+            if product and branch:
+                print("🔔 Enviando notificación de stock bajo...")
+                NotificationService.send_stock_alert(
+                    product_id=product.id,
+                    product_name=product.name,
+                    branch_id=branch.id,
+                    branch_name=branch.name,
+                    current_stock=stock.quantity,
+                    min_stock=stock.min_stock
+                )
+
         # Verificar si el stock está agotado
         if stock.quantity <= 0:
             # Enviar notificación SSE de stock agotado

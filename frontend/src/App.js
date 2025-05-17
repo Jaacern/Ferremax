@@ -30,6 +30,9 @@ import UserManagement from './pages/Admin/UserManagement';
 import OrderManagement from './pages/Admin/OrderManagement';
 import BranchManagement from './pages/Admin/BranchManagement';
 import AdminStockPage from './pages/Admin/AdminStockPage';  
+import notificationService from './services/notification.service';
+
+notificationService.init();
 
 function App() {
   return (

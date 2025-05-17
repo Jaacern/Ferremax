@@ -54,6 +54,7 @@ const AdminDashboard = () => {
       pauseOnHover: true,
       draggable: true
       });
+      console.log("Received stock alert in dashboard:", data);
     });
     
     // Simular carga de datos (en una app real, esto sería una llamada a la API)

@@ -32,7 +32,7 @@ const notificationService = {
     
     try {
       // Crear conexión SSE con el backend
-      eventSource = new EventSource('/stream');
+      eventSource = new EventSource('http://localhost:5000/stream', { withCredentials: true });
       reconnectAttempts = 0;
       
       // Gestionar apertura de conexión
