@@ -32,6 +32,11 @@ import BranchManagement from './pages/Admin/BranchManagement';
 import AdminStockPage from './pages/Admin/AdminStockPage';  
 import notificationService from './services/notification.service';
 
+//Págignas vendedor
+import OrdersToAprove from './pages/Vendor/Dashboard';
+import ProductInventory from './pages/Vendor/Dashboard';
+import VendorDashboard from './pages/Vendor/Dashboard';
+
 notificationService.init();
 
 function App() {
@@ -115,6 +120,32 @@ function App() {
               }
             />
 
+            {/* Rutas de vendedor protegidas */}
+            <Route
+              path="/vendor"
+              element={
+                <ProtectedRoute allowedRoles={['vendor']}>
+                  <VendorDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/vendor/orders"
+              element={
+                <ProtectedRoute allowedRoles={['vendor']}>
+                  <OrdersToAprove />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/vendor/inventory"
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <ProductInventory/>
+                </ProtectedRoute>
+              }             
+            />
+            
             {/* Ruta para páginas no encontradas */}
             <Route
               path="*"

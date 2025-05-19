@@ -17,7 +17,7 @@ const CheckoutForm = ({ onSubmit, isLoading }) => {
     region: '',
     zipCode: '',
     deliveryMethod: 'PICKUP',  // PICKUP o DELIVERY
-    branchId: '',  // Para retiro en tienda
+    branchId: null,  // Para retiro en tienda
     paymentMethod: 'CREDIT_CARD',  // CREDIT_CARD, DEBIT_CARD, BANK_TRANSFER
     notes: ''
   });
@@ -46,7 +46,13 @@ const CheckoutForm = ({ onSubmit, isLoading }) => {
     }
     
     // Si llegamos aquí, el formulario es válido
-    onSubmit(formData);
+    console.log("✅ Submit pressed");
+    console.log("formData:", formData);
+    const cleanedFormData = {
+      ...formData,
+      branchId: formData.deliveryMethod === 'PICKUP' ? formData.branchId : null
+    };
+    onSubmit(cleanedFormData);
   };
   
   // Determinar si necesitamos dirección de envío

@@ -10,6 +10,7 @@ import {
 
 import CheckoutForm from '../../components/cart/CheckoutForm';
 import CartSummary from '../../components/cart/CartSummary';
+import api from '../../services/api';
 
 // Este servicio aún no existe, pero lo crearemos después
 // import orderService from '../../services/order.service';
@@ -29,41 +30,66 @@ const Checkout = () => {
       setError('No hay productos en el carrito');
       return;
     }
-    
+
     setIsLoading(true);
     setError(null);
-    
+
+    const branchId = Number(formData.branchId);
+    const deliveryMethod = formData.deliveryMethod === 'PICKUP'
+    ? 'retiro en tienda'
+    : 'despacho a domicilio';
+
+    if (deliveryMethod === 'pickup' && !branchId) {
+      setError("Por favor selecciona una sucursal válida.");
+      setIsLoading(false);
+      return;
+    }
+
+
     try {
-      // Simulación de envío de orden (en una app real, esto llamaría al backend)
-      // const orderData = {
-      //   items: cartItems,
-      //   ...formData
-      // };
-      // const response = await orderService.createOrder(orderData);
+      // Paso 1: Crear orden
+      const orderPayload = {
+        branch_id: deliveryMethod === 'retiro en tienda' ? Number(formData.branchId) : null,
+        delivery_method: deliveryMethod,
+        delivery_address: deliveryMethod === 'despacho a domicilio' ? formData.address : null,
+        notes: formData.notes || '',
+        items: cartItems.map(item => ({
+          product_id: item.id,
+          quantity: item.quantity
+        }))
+      };
+
+      console.log("Payload a enviar:", orderPayload);
+      const orderResponse = await api.post('/orders', orderPayload);
+      const createdOrder = orderResponse.data.order;
+
+      const paymentMethodMap = {
+        CREDIT_CARD: 'tarjeta de crédito',
+        DEBIT_CARD: 'tarjeta de débito',
+        BANK_TRANSFER: 'transferencia bancaria',
+        CASH: 'efectivo'
+        };
+
+      const paymentPayload = {
+        order_id: createdOrder.id,
+        payment_method: paymentMethodMap[formData.paymentMethod] || 'tarjeta de crédito'
+      };
       
-      // Simular respuesta exitosa
-      console.log('Datos del pedido:', {
-        items: cartItems,
-        ...formData
-      });
-      
-      // Esperar un momento para simular la petición al servidor
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // Limpiar carrito después de un pedido exitoso
-      dispatch(clearCart());
-      
-      // Redirigir a página de éxito (aun no existe, pero la crearemos después)
-      navigate('/payment-success');
-      
+      const paymentResponse = await api.post('/payments/initiate', paymentPayload);
+      const redirectUrl = paymentResponse.data.payment_details.redirect_url;
+
+      // Paso 3: Redirigir a Webpay
+      window.location.href = redirectUrl;
+
     } catch (error) {
       console.error('Error al procesar el pedido:', error);
-      setError('Ha ocurrido un error al procesar tu pedido. Por favor intenta nuevamente.');
+      const msg = error.response?.data?.error || 'Ocurrió un error al crear el pedido o iniciar el pago.';
+      setError(msg);
     } finally {
       setIsLoading(false);
     }
   };
-  
+
   // Si el carrito está vacío, redirigir al carrito
   if (isEmpty) {
     return (

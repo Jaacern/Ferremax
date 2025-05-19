@@ -18,7 +18,9 @@ def initiate_payment():
     """Iniciar proceso de pago para una orden"""
     user_id = get_jwt_identity()
     data = request.json
-    
+    print("🔐 JWT Identity (user_id):", user_id)
+    print("📦 Datos recibidos:", data)
+
     # Validar datos requeridos
     required_fields = ['order_id', 'payment_method']
     if not all(k in data for k in required_fields):
@@ -38,8 +40,11 @@ def initiate_payment():
     # Verificar que el usuario es dueño de la orden o tiene rol adecuado
     jwt_data = get_jwt()
     role = jwt_data.get('role')
+
+    print("🔐 Rol del usuario:", role)
+    print("👤 user_id dueño de la orden:", order.user_id)
     
-    if role == UserRole.CUSTOMER.value and order.user_id != user_id:
+    if role == UserRole.CUSTOMER.value and int(order.user_id) != int(user_id):
         return jsonify({"error": "No autorizado"}), 403
     
     # Verificar que la orden esté en estado pendiente o aprobada
