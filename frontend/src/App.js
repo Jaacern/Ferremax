@@ -1,6 +1,9 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 
+import RedirectToWebPay from './pages/RedirectToWebpay';
+
+
 // Componentes comunes
 import Navbar from './components/common/Navbar';
 import Footer from './components/common/Footer';
@@ -144,6 +147,9 @@ function App() {
                   <ProductInventory/>
                 </ProtectedRoute>
               }             
+            />
+
+            <Route path="/webpay-redirect" element={<RedirectToWebPay />} 
             />
             
             {/* Ruta para páginas no encontradas */}

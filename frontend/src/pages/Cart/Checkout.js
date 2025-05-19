@@ -79,7 +79,7 @@ const Checkout = () => {
       const redirectUrl = paymentResponse.data.payment_details.redirect_url;
 
       // Paso 3: Redirigir a Webpay
-      window.location.href = redirectUrl;
+      navigate(`/webpay-redirect?token=${paymentResponse.data.payment_details.token}`);
 
     } catch (error) {
       console.error('Error al procesar el pedido:', error);
