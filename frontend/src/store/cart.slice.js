@@ -6,7 +6,8 @@ const initialState = {
   total: 0,
   itemCount: 0,
   isLoading: false,
-  error: null
+  error: null,
+  lastAddedItem: null,
 };
 
 // Funciones auxiliares
@@ -68,6 +69,8 @@ const cartSlice = createSlice({
         // Añadir nuevo item
         state.items.push({ id, quantity, ...rest });
       }
+
+      state.lastAddedItem = ({ id, quantity: 1, ...rest})
       
       // Recalcular totales
       state.total = calculateTotal(state.items);

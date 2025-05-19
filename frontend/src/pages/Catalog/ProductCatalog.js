@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { Container, Row, Col, Pagination, Form } from 'react-bootstrap';
+import React, { useEffect, useState} from 'react';
+import { Container, Row, Col, Pagination, Form, Toast, ToastContainer } from 'react-bootstrap';
 import { useDispatch, useSelector } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
 
@@ -35,7 +35,9 @@ const ProductCatalog = () => {
   const isLoading = useSelector(selectIsLoading);
   const error = useSelector(selectError);
   const filters = useSelector(selectFilters);
-  
+  const lastAddedItem = useSelector((state) => state.cart.lastAddedItem);
+  const [showToast, setShowToast] = useState(false);
+
   // Parsear parámetros de URL para filtros iniciales
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -83,6 +85,15 @@ const ProductCatalog = () => {
     
   }, [filters, pagination.page, dispatch, navigate]);
   
+  useEffect(() => {
+  if (lastAddedItem) {
+    setShowToast(true);
+    const timer = setTimeout(() => setShowToast(false), 2000);
+    return () => clearTimeout(timer);
+  }
+  }, [lastAddedItem]);
+
+
   // Manejar cambio de página
   const handlePageChange = (page) => {
     dispatch(setFilters({ page }));
@@ -228,7 +239,14 @@ const ProductCatalog = () => {
           {/* Paginación */}
           {renderPagination()}
         </Col>
-      </Row>
+      </Row>              
+        <ToastContainer position="top-end" className="p-3">
+        <Toast show={showToast} onClose={() => setShowToast(false)} delay={2000} autohide bg="success">
+          <Toast.Body className="text-white">
+            {lastAddedItem ? `"${lastAddedItem.name}" añadido al carrito` : 'Producto añadido al carrito'}
+          </Toast.Body>
+        </Toast>
+      </ToastContainer>
     </Container>
   );
 };
