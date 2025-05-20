@@ -9,6 +9,14 @@ import {
 } from '../store/product.slice';
 
 import ProductCard from '../components/products/ProductCard';
+import HerramientasImage from '../assets/css/images/herramientas.png';
+import ofertasImage from '../assets/css/images/ofertas.png';
+import HerramientasCategoriaImage from '../assets/css/images/herramientascategoria.png';
+import MaterialesCategoriaImage from '../assets/css/images/materialescategoria.png';
+import EquiposCategoriaImage from '../assets/css/images/equiposcategoria.png';
+
+
+
 
 const Home = () => {
   const dispatch = useDispatch();
@@ -67,9 +75,9 @@ const Home = () => {
                   </div>
                 </Col>
                 <Col md={6} className="d-none d-md-flex align-items-center justify-content-end">
-                  <div className="bg-white rounded p-3">
+                  <div className="rounded p-3">
                     <img 
-                      src="https://via.placeholder.com/500x300?text=FERREMAS" 
+                      src={HerramientasImage} 
                       alt="Herramientas FERREMAS" 
                       className="img-fluid"
                     />
@@ -103,14 +111,15 @@ const Home = () => {
                   </div>
                 </Col>
                 <Col md={6} className="d-none d-md-flex align-items-center justify-content-end">
-                  <div className="bg-white rounded p-3">
+                  <div className="rounded p-3">
                     <img 
-                      src="https://via.placeholder.com/500x300?text=OFERTAS" 
+                      src={ofertasImage} 
                       alt="Ofertas especiales" 
                       className="img-fluid"
                     />
                   </div>
                 </Col>
+
               </Row>
             </Container>
           </div>
@@ -122,61 +131,73 @@ const Home = () => {
         <h2 className="mb-4">Categorías principales</h2>
         <Row>
           <Col md={4} className="mb-4">
-            <Card className="category-card h-100">
-              <Card.Img 
-                variant="top" 
-                src="https://via.placeholder.com/300x200?text=Herramientas" 
-              />
-              <Card.Body className="text-center">
-                <Card.Title>Herramientas</Card.Title>
-                <Button 
-                  as={Link}
-                  to="/products?category=MANUAL_TOOLS"
-                  variant="primary"
-                >
-                  Ver productos
-                </Button>
-              </Card.Body>
-            </Card>
-          </Col>
+          <Card className="category-card h-100">
+            <Card.Body className="text-center">
+              <div className="rounded p-3">
+                <img 
+                  src={HerramientasCategoriaImage} 
+                  alt="Herramientas FERREMAS" 
+                  className="img-fluid"
+                />
+              </div>
+              <Card.Title className="mt-3">Herramientas</Card.Title>
+              <Button 
+                as={Link}
+                to="/products?category=MANUAL_TOOLS"
+                variant="primary"
+              >
+                Ver productos
+              </Button>
+            </Card.Body>
+          </Card>
+        </Col>
+
           
-          <Col md={4} className="mb-4">
-            <Card className="category-card h-100">
-              <Card.Img 
-                variant="top" 
-                src="https://via.placeholder.com/300x200?text=Materiales" 
+        <Col md={4} className="mb-4">
+        <Card className="category-card h-100">
+          <Card.Body className="text-center">
+            <div className="rounded p-3">
+              <img 
+                src={MaterialesCategoriaImage} 
+                alt="Materiales de construcción" 
+                className="img-fluid"
               />
-              <Card.Body className="text-center">
-                <Card.Title>Materiales de construcción</Card.Title>
-                <Button 
-                  as={Link}
-                  to="/products?category=CONSTRUCTION_MATERIALS"
-                  variant="primary"
-                >
-                  Ver productos
-                </Button>
-              </Card.Body>
-            </Card>
-          </Col>
+            </div>
+            <Card.Title className="mt-3">Materiales de construcción</Card.Title>
+            <Button 
+              as={Link}
+              to="/products?category=CONSTRUCTION_MATERIALS"
+              variant="primary"
+            >
+              Ver productos
+            </Button>
+          </Card.Body>
+        </Card>
+      </Col>
+
           
-          <Col md={4} className="mb-4">
-            <Card className="category-card h-100">
-              <Card.Img 
-                variant="top" 
-                src="https://via.placeholder.com/300x200?text=Seguridad" 
+        <Col md={4} className="mb-4">
+        <Card className="category-card h-100">
+          <Card.Body className="text-center">
+            <div className="rounded p-3">
+              <img 
+                src={EquiposCategoriaImage} 
+                alt="Equipos de seguridad" 
+                className="img-fluid"
               />
-              <Card.Body className="text-center">
-                <Card.Title>Equipos de seguridad</Card.Title>
-                <Button 
-                  as={Link}
-                  to="/products?category=SAFETY_EQUIPMENT"
-                  variant="primary"
-                >
-                  Ver productos
-                </Button>
-              </Card.Body>
-            </Card>
-          </Col>
+            </div>
+            <Card.Title className="mt-3">Equipos de seguridad</Card.Title>
+            <Button 
+              as={Link}
+              to="/products?category=SAFETY_EQUIPMENT"
+              variant="primary"
+            >
+              Ver productos
+            </Button>
+          </Card.Body>
+        </Card>
+      </Col>
+
         </Row>
       </Container>
       
