@@ -1,5 +1,5 @@
 # 🔨 FERREMAS - Sistema de Gestión para Distribuidora de Productos de Ferretería y Construcción
-
+![Demo Ferremax](demo.gif)
 ## 📑Contenido
 - [Introducción](#introducción)
 - [Contexto del Proyecto](#contexto-del-proyecto)
