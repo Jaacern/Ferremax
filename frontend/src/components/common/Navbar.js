@@ -3,6 +3,7 @@ import { Navbar as BSNavbar, Container, Nav, NavDropdown, Button, Badge } from '
 import { Link, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import LogoImage from '../../assets/css/images/logo.png'; 
+import CurrencySelector from '../common/CurrencySelector'; // Añadir esta importación
 
 import { 
   selectIsAuthenticated, 
@@ -10,6 +11,7 @@ import {
   selectUserRole,
   logout 
 } from '../../store/auth.slice';
+import { selectCurrentCurrency } from '../../store/currency.slice'; // Añadir esta importación
 
 const Navbar = () => {
   const dispatch = useDispatch();
@@ -17,6 +19,7 @@ const Navbar = () => {
   const isAuthenticated = useSelector(selectIsAuthenticated);
   const currentUser = useSelector(selectCurrentUser);
   const userRole = useSelector(selectUserRole);
+  const currentCurrency = useSelector(selectCurrentCurrency); // Obtener moneda actual
 
   const cartItemCount = 0;
 
@@ -109,6 +112,11 @@ const Navbar = () => {
           </Nav>
 
           <Nav>
+            {/* Añadir el selector de moneda aquí */}
+            <div className="me-3 d-flex align-items-center">
+              <CurrencySelector />
+            </div>
+
             {isAuthenticated ? (
               <>
                 {userRole === 'customer' && (

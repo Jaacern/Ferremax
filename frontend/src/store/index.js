@@ -2,12 +2,14 @@ import { configureStore } from '@reduxjs/toolkit';
 import authReducer from './auth.slice';
 import productReducer from './product.slice';
 import cartReducer from './cart.slice';
+import currencyReducer from './currency.slice'; // Añadir esto
 
 export const store = configureStore({
   reducer: {
     auth: authReducer,
     product: productReducer,
-    cart: cartReducer
+    cart: cartReducer,
+    currency: currencyReducer // Añadir esto
   },
   // Middleware para manejar serialización de datos no serializables si es necesario
   middleware: (getDefaultMiddleware) =>

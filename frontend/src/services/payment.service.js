@@ -110,10 +110,22 @@ const paymentService = {
    * @returns {string} - Precio formateado (ej: "$10.000")
    */
   formatPrice: (price, currency = 'CLP') => {
-    return new Intl.NumberFormat('es-CL', {
+    // Configurar opciones según la moneda
+    const options = {
       style: 'currency',
       currency: currency
-    }).format(price);
+    };
+    
+    // El peso chileno no usa decimales
+    if (currency === 'CLP') {
+      options.minimumFractionDigits = 0;
+      options.maximumFractionDigits = 0;
+    } else {
+      options.minimumFractionDigits = 2;
+      options.maximumFractionDigits = 2;
+    }
+    
+    return new Intl.NumberFormat('es-CL', options).format(price);
   }
 };
 
