@@ -2,7 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 
 import RedirectToWebPay from './pages/RedirectToWebpay';
-
+import ConfirmPayment from './pages/ConfirmPayment';
 
 // Componentes comunes
 import Navbar from './components/common/Navbar';
@@ -36,9 +36,14 @@ import AdminStockPage from './pages/Admin/AdminStockPage';
 import notificationService from './services/notification.service';
 
 //Págignas vendedor
-import OrdersToAprove from './pages/Vendor/Dashboard';
-import ProductInventory from './pages/Vendor/Dashboard';
+import OrdersToAprove from './pages/Vendor/OrdersToApprove';
+import ProductInventory from './pages/Vendor/ProductInventory';
 import VendorDashboard from './pages/Vendor/Dashboard';
+
+//Páginas usuario
+import Orders from './pages/User/Orders';
+
+import OrderDetailPage from './pages/User/OrderDetailPage';
 
 notificationService.init();
 
@@ -149,9 +154,17 @@ function App() {
               }             
             />
 
+            {/* Ruta para webpay y pagos */}
             <Route path="/webpay-redirect" element={<RedirectToWebPay />} 
             />
+            <Route path="/confirm_payment" element={<ConfirmPayment />} />
             
+            <Route path="/payment/success" element={<PaymentSuccess />} />
+
+            <Route path="/orders" element={<Orders />} />
+
+            <Route path="/orders/:orderId" element={<OrderDetailPage />} />
+
             {/* Ruta para páginas no encontradas */}
             <Route
               path="*"

@@ -101,7 +101,7 @@ def initiate_payment():
             webpay_service = WebpayService()
             
             # URL de retorno (ajustar según configuración)
-            return_url = url_for('payments.confirm_payment', _external=True)
+            return_url = "http://localhost:3000/confirm_payment"
             
             # Iniciar transacción en WebPay
             transaction_result = webpay_service.initiate_transaction(
@@ -167,6 +167,8 @@ def confirm_payment():
         # Validar transacción con WebPay
         webpay_service = WebpayService()
         transaction_result = webpay_service.confirm_transaction(token)
+
+        print("📄 Resultado confirmación WebPay:", transaction_result)
         
         if not transaction_result:
             payment.status = PaymentStatus.FAILED

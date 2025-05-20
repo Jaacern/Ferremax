@@ -10,7 +10,7 @@ const PaymentSuccess = () => {
   
   // Extraer información de la URL si existe
   const queryParams = new URLSearchParams(location.search);
-  const orderNumber = queryParams.get('order') || 'ORD-20250514-XYZ123'; // Valor de ejemplo
+  const orderNumber = queryParams.get('order_id') || 'ORD-XXX'; // Valor de ejemplo
   
   // Efecto para simular un scroll hacia arriba cuando se carga la página
   useEffect(() => {
