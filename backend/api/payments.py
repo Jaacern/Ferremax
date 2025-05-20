@@ -21,6 +21,14 @@ def initiate_payment():
     print("🔐 JWT Identity (user_id):", user_id)
     print("📦 Datos recibidos:", data)
 
+    if currency != CurrencyType.CLP:
+        cs = CurrencyService()
+        try:
+            amount = cs.convert(amount, CurrencyType.CLP, currency)
+        except Exception:
+            cs.update_rates()              # ← refresca tasas
+            amount = cs.convert(amount, CurrencyType.CLP, currency)
+
     # Validar datos requeridos
     required_fields = ['order_id', 'payment_method']
     if not all(k in data for k in required_fields):
@@ -398,44 +406,43 @@ def get_exchange_rates():
 @payments_bp.route('/convert', methods=['GET'])
 def convert_amount():
     """Convertir monto entre monedas"""
-    # Obtener parámetros
     amount = request.args.get('amount', type=float)
     from_currency = request.args.get('from', default='CLP')
-    to_currency = request.args.get('to', default='USD')
-    
-    if not amount:
+    to_currency   = request.args.get('to',   default='USD')
+
+    if amount is None:
         return jsonify({"error": "Se requiere especificar un monto"}), 400
-    
+
     try:
-        # Convertir a enums
         from_currency_enum = CurrencyType(from_currency)
-        to_currency_enum = CurrencyType(to_currency)
-        
-        # Usar servicio de conversión
-        currency_service = CurrencyService()
-        converted_amount = currency_service.convert(amount, from_currency_enum, to_currency_enum)
-        
-        # Obtener tasa utilizada
-        rate = currency_service.get_current_rate(from_currency_enum, to_currency_enum)
-        
+        to_currency_enum   = CurrencyType(to_currency)
+
+        # ─── Conversión con re-intento ────────────────────────────────
+        cs = CurrencyService()
+        try:
+            converted_amount = cs.convert(amount, from_currency_enum, to_currency_enum)
+        except Exception:
+            cs.update_rates()
+            converted_amount = cs.convert(amount, from_currency_enum, to_currency_enum)
+
+        rate_obj = cs.get_current_rate(from_currency_enum, to_currency_enum)
+
         return jsonify({
-            "original": {
-                "amount": amount,
-                "currency": from_currency
-            },
-            "converted": {
-                "amount": converted_amount,
-                "currency": to_currency
-            },
-            "rate": float(rate.rate),
-            "rate_date": rate.fetched_at.isoformat()
+            "original":  {"amount": amount, "currency": from_currency},
+            "converted": {"amount": converted_amount, "currency": to_currency},
+            "rate":      float(rate_obj.rate),
+            "rate_date": rate_obj.fetched_at.isoformat()
         }), 200
+
+    except ValueError:
+        return jsonify({"error": "Moneda inválida"}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
         
     except ValueError:
         return jsonify({"error": "Moneda inválida"}), 400
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
 
 @payments_bp.route('/update-rates', methods=['POST'])
 @jwt_required()
@@ -443,14 +450,11 @@ def convert_amount():
 def update_exchange_rates():
     """Actualizar tasas de cambio (solo admin)"""
     try:
-        # Usar servicio para actualizar tasas
         currency_service = CurrencyService()
         updated_rates = currency_service.update_rates()
-        
         return jsonify({
             "message": "Tasas de cambio actualizadas correctamente",
             "updated_rates": updated_rates
         }), 200
-        
     except Exception as e:
         return jsonify({"error": str(e)}), 500

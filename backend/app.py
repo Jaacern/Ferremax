@@ -63,6 +63,15 @@ from api.orders import orders_bp
 from api.stock import stock_bp
 from api.payments import payments_bp
 
+from services.currency_service import CurrencyService
+
+with app.app_context():                 # 👈  contexto válido
+    try:
+        CurrencyService().update_rates()
+    except Exception as exc:
+        app.logger.warning(f"No se pudieron cargar tasas iniciales: {exc}")
+
+
 app.register_blueprint(auth_bp, url_prefix='/api/auth')
 app.register_blueprint(products_bp, url_prefix='/api/products')
 app.register_blueprint(orders_bp, url_prefix='/api/orders')

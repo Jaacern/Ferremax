@@ -22,3 +22,5 @@ gunicorn==21.2.0
 pytest==7.4.2
 black==23.9.1
 flake8==6.1.0
+
+zeep==4.3.1
