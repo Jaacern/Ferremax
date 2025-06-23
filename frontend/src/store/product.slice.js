@@ -30,11 +30,20 @@ export const fetchProducts = createAsyncThunk(
   'products/fetchProducts',
   async ({ page, filters }, { rejectWithValue }) => {
     try {
-      return await productService.getProducts(page, filters);
+      console.log('Redux - fetchProducts llamado con:', { page, filters });
+      const result = await productService.getProducts(page, filters);
+      console.log('Redux - fetchProducts resultado:', result);
+      return result;
     } catch (error) {
-      return rejectWithValue(
-        error.response?.data?.error || 'Error al cargar productos'
-      );
+      console.error('Redux - fetchProducts error:', error);
+      console.error('Redux - fetchProducts error response:', error.response);
+      console.error('Redux - fetchProducts error data:', error.response?.data);
+      
+      const errorMessage = error.response?.data?.error || 
+                          error.message || 
+                          'Error al cargar productos';
+      
+      return rejectWithValue(errorMessage);
     }
   }
 );
@@ -71,6 +80,7 @@ const productSlice = createSlice({
   initialState,
   reducers: {
     setFilters: (state, action) => {
+      console.log('Redux - setFilters llamado con:', action.payload);
       state.filters = {
         ...state.filters,
         ...action.payload
@@ -97,15 +107,18 @@ const productSlice = createSlice({
   extraReducers: (builder) => {
     // fetchProducts
     builder.addCase(fetchProducts.pending, (state) => {
+      console.log('Redux - fetchProducts pending');
       state.isLoading = true;
       state.error = null;
     });
     builder.addCase(fetchProducts.fulfilled, (state, action) => {
+      console.log('Redux - fetchProducts fulfilled:', action.payload);
       state.isLoading = false;
       state.products = action.payload.products;
       state.pagination = action.payload.pagination;
     });
     builder.addCase(fetchProducts.rejected, (state, action) => {
+      console.error('Redux - fetchProducts rejected:', action.payload);
       state.isLoading = false;
       state.error = action.payload;
     });

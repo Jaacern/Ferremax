@@ -24,9 +24,16 @@ app.config['JWT_ACCESS_TOKEN_EXPIRES'] = 86400  # 24 horas
 app.config['REDIS_URL'] = os.getenv('REDIS_URL', 'redis://localhost:6379')
 app.config['SSE_REDIS_URL'] = app.config['REDIS_URL']
 
-# Habilitar CORS
-# Habilitar CORS
-CORS(app, supports_credentials=True, resources={r"/*": {"origins": "*"}})
+# Habilitar CORS con configuración más específica
+CORS(app, 
+     supports_credentials=True, 
+     resources={
+         r"/api/*": {
+             "origins": ["http://localhost:3000", "http://127.0.0.1:3000"],
+             "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+             "allow_headers": ["Content-Type", "Authorization", "X-Requested-With"]
+         }
+     })
 
 # Inicializar extensiones
 db = SQLAlchemy(app)

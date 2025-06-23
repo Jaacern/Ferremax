@@ -1,0 +1,30 @@
+# Dependencias para las pruebas de FERREMAS
+# =========================================
+
+# Cliente HTTP para pruebas REST API
+requests>=2.31.0
+
+# Cliente SSE para pruebas de Server-Sent Events
+sseclient-py>=1.7.2
+
+# Cliente gRPC para pruebas de microservicios
+grpcio>=1.71.0
+grpcio-tools>=1.71.0
+
+# Utilidades para pruebas
+unittest2>=1.1.0
+
+# Para manejo de JSON y datos
+jsonschema>=4.17.3
+
+# Para pruebas de rendimiento
+psutil>=5.9.0
+
+# Para manejo de timeouts y concurrencia
+concurrent-futures>=3.1.1
+
+# Para validación de datos
+pydantic>=2.4.2
+
+# Para logging en pruebas
+colorlog>=6.7.0 

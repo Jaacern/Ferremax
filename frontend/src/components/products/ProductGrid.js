@@ -17,10 +17,21 @@ const ProductGrid = ({ products, isLoading, error }) => {
   
   // Si hay un error, mostrar mensaje de error
   if (error) {
+    console.error('ProductGrid - Error recibido:', error);
     return (
       <Alert variant="danger" className="my-3">
         <Alert.Heading>Error al cargar productos</Alert.Heading>
-        <p>{error}</p>
+        <p><strong>Mensaje de error:</strong> {error}</p>
+        <hr />
+        <p className="mb-0">
+          <strong>Posibles soluciones:</strong>
+          <ul className="mb-0 mt-2">
+            <li>Verifica que el servidor backend esté funcionando</li>
+            <li>Revisa la consola del navegador para más detalles</li>
+            <li>Intenta recargar la página</li>
+            <li>Verifica tu conexión a internet</li>
+          </ul>
+        </p>
       </Alert>
     );
   }
@@ -29,7 +40,11 @@ const ProductGrid = ({ products, isLoading, error }) => {
   if (!products || products.length === 0) {
     return (
       <Alert variant="info" className="my-3">
-        <p className="mb-0">No se encontraron productos con los filtros seleccionados.</p>
+        <Alert.Heading>No se encontraron productos</Alert.Heading>
+        <p className="mb-0">
+          No se encontraron productos con los filtros seleccionados. 
+          Intenta cambiar los filtros o buscar con términos diferentes.
+        </p>
       </Alert>
     );
   }

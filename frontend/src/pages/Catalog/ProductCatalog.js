@@ -55,33 +55,39 @@ const ProductCatalog = () => {
     
     // Aplicar filtros de URL si existen
     if (Object.keys(urlFilters).length > 0) {
+      console.log('Aplicando filtros de URL:', urlFilters);
       dispatch(setFilters(urlFilters));
     }
   }, [location.search, dispatch]);
   
   // Cargar productos cuando cambian los filtros
   useEffect(() => {
+    console.log('Cargando productos con filtros:', filters);
+    console.log('Página actual:', pagination.page);
+    
     dispatch(fetchProducts({ 
       page: pagination.page, 
       filters 
     }));
     
-    // Actualizar URL con los filtros
-    const params = new URLSearchParams();
-    Object.entries(filters).forEach(([key, value]) => {
-      if (value !== null && value !== '' && key !== 'page') {
-        params.append(key, value);
+    // Actualizar URL con los filtros (solo si no es la primera carga)
+    if (Object.keys(filters).length > 0) {
+      const params = new URLSearchParams();
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== null && value !== '' && key !== 'page') {
+          params.append(key, value);
+        }
+      });
+      
+      // Añadir página si es diferente de 1
+      if (pagination.page && pagination.page !== 1) {
+        params.append('page', pagination.page);
       }
-    });
-    
-    // Añadir página si es diferente de 1
-    if (pagination.page && pagination.page !== 1) {
-      params.append('page', pagination.page);
+      
+      // Actualizar URL sin recargar la página
+      const newUrl = params.toString() ? `?${params.toString()}` : '';
+      navigate(`/products${newUrl}`, { replace: true });
     }
-    
-    // Actualizar URL sin recargar la página
-    const newUrl = params.toString() ? `?${params.toString()}` : '';
-    navigate(`/products${newUrl}`, { replace: true });
     
   }, [filters, pagination.page, dispatch, navigate]);
   

@@ -15,8 +15,18 @@ const productService = {
       .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`)
       .join('&');
     
-    const response = await api.get(`/products?${queryString}`);
-    return response.data;
+    console.log('ProductService - URL de la petición:', `/products?${queryString}`);
+    console.log('ProductService - Parámetros:', params);
+    
+    try {
+      const response = await api.get(`/products?${queryString}`);
+      console.log('ProductService - Respuesta exitosa:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('ProductService - Error en la petición:', error);
+      console.error('ProductService - Detalles del error:', error.response?.data);
+      throw error;
+    }
   },
   
   // Obtener un producto por su ID
