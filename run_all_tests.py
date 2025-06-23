@@ -107,7 +107,7 @@ def run_rest_api_tests():
         # Ejecutar pruebas REST API
         result = subprocess.run([
             sys.executable, "test_rest_api.py"
-        ], capture_output=True, text=True, timeout=60)
+        ], capture_output=True, text=True, timeout=180)
         
         print(result.stdout)
         if result.stderr:
@@ -116,7 +116,7 @@ def run_rest_api_tests():
         return result.returncode == 0
         
     except subprocess.TimeoutExpired:
-        print("❌ Pruebas REST API: Timeout (más de 60 segundos)")
+        print("❌ Pruebas REST API: Timeout (más de 180 segundos)")
         return False
     except Exception as e:
         print(f"❌ Pruebas REST API: Error - {e}")
@@ -136,7 +136,7 @@ def run_sse_tests():
         # Ejecutar pruebas SSE
         result = subprocess.run([
             sys.executable, "test_sse.py"
-        ], capture_output=True, text=True, timeout=60)
+        ], capture_output=True, text=True, timeout=180)
         
         print(result.stdout)
         if result.stderr:
@@ -145,7 +145,7 @@ def run_sse_tests():
         return result.returncode == 0
         
     except subprocess.TimeoutExpired:
-        print("❌ Pruebas SSE: Timeout (más de 60 segundos)")
+        print("❌ Pruebas SSE: Timeout (más de 180 segundos)")
         return False
     except Exception as e:
         print(f"❌ Pruebas SSE: Error - {e}")

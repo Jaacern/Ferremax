@@ -2,12 +2,19 @@
  * Servicio para manejar notificaciones en tiempo real con Server-Sent Events (SSE)
  */
 
+import config from '../config';
+
 let eventSource = null;
 let eventHandlers = {};
 let reconnectTimeout = null;
 let reconnectAttempts = 0;
 const MAX_RECONNECT_ATTEMPTS = 5;
 const RECONNECT_DELAY_MS = 3000;
+
+// Obtener la URL SSE de la configuración
+const getSSEUrl = () => {
+  return config.SSE_URL;
+};
 
 const notificationService = {
   /**
@@ -31,9 +38,12 @@ const notificationService = {
     }
     
     try {
-      // Crear conexión SSE con el backend
-      eventSource = new EventSource('http://localhost:5000/stream', { withCredentials: true });
+      // Crear conexión SSE con el backend usando la URL de configuración
+      const sseUrl = getSSEUrl();
+      eventSource = new EventSource(sseUrl, { withCredentials: true });
       reconnectAttempts = 0;
+      
+      console.log('Connecting to SSE at:', sseUrl);
       
       // Gestionar apertura de conexión
       eventSource.onopen = () => {
@@ -45,6 +55,7 @@ const notificationService = {
       eventSource.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
+          console.log('SSE message received:', data);
           this.triggerEvent('message', data);
         } catch (err) {
           console.error('Error parsing SSE message:', err);

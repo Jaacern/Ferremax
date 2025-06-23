@@ -16,6 +16,7 @@ import {
 } from 'chart.js';
 import { toast, ToastContainer } from 'react-toastify';
 import notificationService from '../../services/notification.service'; // ajusta la ruta si es distinta
+import SSETest from '../../components/common/SSETest';
 import 'react-toastify/dist/ReactToastify.css';
 
 // Registrar componentes de Chart.js
@@ -398,6 +399,13 @@ const AdminDashboard = () => {
               </div>
             </Card.Body>
           </Card>
+        </Col>
+      </Row>
+
+      {/* Componente de prueba SSE */}
+      <Row className="mb-4">
+        <Col>
+          <SSETest />
         </Col>
       </Row>
 

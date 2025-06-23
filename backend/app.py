@@ -32,6 +32,12 @@ CORS(app,
              "origins": ["http://localhost:3000", "http://127.0.0.1:3000"],
              "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
              "allow_headers": ["Content-Type", "Authorization", "X-Requested-With"]
+         },
+         r"/stream/*": {
+             "origins": ["http://localhost:3000", "http://127.0.0.1:3000"],
+             "methods": ["GET", "OPTIONS"],
+             "allow_headers": ["Content-Type", "Authorization", "X-Requested-With", "Cache-Control", "Last-Event-ID"],
+             "expose_headers": ["Content-Type", "Cache-Control", "Last-Event-ID"]
          }
      })
 
@@ -56,6 +62,9 @@ def not_found(e):
 def server_error(e):
     return jsonify({"error": "Error interno del servidor"}), 500
 
+from sse_routes import sse_bp
+app.register_blueprint(sse_bp)
+
 # Importar modelos (después de inicializar db)
 # Nota: Esto se hace al final para evitar importaciones circulares
 from models.user import User
@@ -75,6 +84,8 @@ app.register_blueprint(products_bp, url_prefix='/api/products')
 app.register_blueprint(orders_bp, url_prefix='/api/orders')
 app.register_blueprint(stock_bp, url_prefix='/api/stock')
 app.register_blueprint(payments_bp, url_prefix='/api/payments')
+app.register_blueprint(sse, url_prefix='/stream', name='sse_stream')
+
 
 if __name__ == '__main__':
     app.run(debug=True)

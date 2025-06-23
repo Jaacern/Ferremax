@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Toast, ToastContainer, Badge } from 'react-bootstrap';
 import { useSelector } from 'react-redux';
 import { selectUserRole } from '../../store/auth.slice';
+import notificationService from '../../services/notification.service';
+import config from '../../config';
 
 const StockAlert = () => {
   const [alerts, setAlerts] = useState([]);
@@ -15,13 +17,9 @@ const StockAlert = () => {
     // Solo configurar SSE si el usuario tiene un rol que debe recibir alertas
     if (!shouldReceiveAlerts) return;
     
-    // Configurar conexión SSE
-    const eventSource = new EventSource('/stream/stock_alert');
-    
-    // Manejar eventos de alerta de stock
-    eventSource.addEventListener('stock_alert', (event) => {
+    // Suscribirse a alertas de stock usando el servicio de notificaciones
+    const unsubscribe = notificationService.subscribe('stock_alert', (data) => {
       try {
-        const data = JSON.parse(event.data);
         // Generar ID único para la alerta
         const alertId = `stock-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
         
@@ -43,19 +41,9 @@ const StockAlert = () => {
       }
     });
     
-    // Manejar errores de conexión
-    eventSource.onerror = (error) => {
-      console.error('Error en la conexión SSE:', error);
-      // Intentar reconectar después de 5 segundos
-      setTimeout(() => {
-        eventSource.close();
-        // La reconexión ocurrirá naturalmente cuando el componente se vuelva a montar
-      }, 5000);
-    };
-    
     // Limpiar al desmontar
     return () => {
-      eventSource.close();
+      unsubscribe();
     };
   }, [shouldReceiveAlerts]);
   
