@@ -5,16 +5,21 @@ import { useDispatch, useSelector } from 'react-redux';
 import { 
   selectCartItems, 
   selectIsCartEmpty, 
-  clearCart 
+  clearCart,
+  selectCartTotal
 } from '../../store/cart.slice';
+import { selectCurrentCurrency } from '../../store/currency.slice';
 
 import CartItem from '../../components/cart/CartItem';
 import CartSummary from '../../components/cart/CartSummary';
+import CurrencyDisplay from '../../components/common/CurrencyDisplay';
 
 const ShoppingCart = () => {
   const dispatch = useDispatch();
   const cartItems = useSelector(selectCartItems);
   const isEmpty = useSelector(selectIsCartEmpty);
+  const cartTotal = useSelector(selectCartTotal);
+  const currentCurrency = useSelector(selectCurrentCurrency);
   
   // Limpiar carrito
   const handleClearCart = () => {
@@ -64,14 +69,51 @@ const ShoppingCart = () => {
             {/* Items del carrito */}
             <div className="cart-items">
               {cartItems.map(item => (
-                <CartItem key={item.id} item={item} />
+                <CartItem 
+                  key={item.id} 
+                  item={item} 
+                />
               ))}
+            </div>
+            
+            {/* Botón para continuar comprando */}
+            <div className="mt-4">
+              <Button
+                as={Link}
+                to="/products"
+                variant="outline-secondary"
+                className="me-2"
+              >
+                <i className="bi bi-arrow-left me-1"></i> Continuar comprando
+              </Button>
+              
+              {/* Botón redundante para checkout - Como respaldo por si hay problemas con CartSummary */}
+              <Button
+                as={Link}
+                to="/checkout"
+                variant="primary"
+              >
+                Proceder al pago <i className="bi bi-arrow-right ms-1"></i>
+              </Button>
             </div>
           </Col>
           
           {/* Resumen del carrito */}
           <Col lg={4}>
             <CartSummary />
+            
+            {/* Información sobre moneda no predeterminada */}
+            {currentCurrency !== 'CLP' && (
+              <div className="mt-3 p-3 border rounded bg-light">
+                <p className="mb-0 small">
+                  <i className="bi bi-info-circle me-1"></i>
+                  Total en moneda original: <strong><CurrencyDisplay amount={cartTotal} originalCurrency="CLP" /></strong>
+                </p>
+                <p className="mb-0 mt-1 small text-muted">
+                  * Los precios se muestran en {currentCurrency} según la tasa de cambio actual.
+                </p>
+              </div>
+            )}
           </Col>
         </Row>
       )}

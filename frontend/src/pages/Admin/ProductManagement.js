@@ -27,11 +27,20 @@ import {
 } from '../../store/product.slice';
 import productService from '../../services/product.service';
 
+const defaultPagination = {
+  page: 1,
+  pages: 1,
+  total: 0,
+  per_page: 10,
+  has_next: false,
+  has_prev: false,
+};
+
 const ProductManagement = () => {
   const dispatch = useDispatch();
   const products = useSelector(selectProducts);
   const categories = useSelector(selectCategories);
-  const pagination = useSelector(selectPagination);
+  const pagination = useSelector(selectPagination) || defaultPagination;
   const isLoading = useSelector(selectIsLoading);
   const error = useSelector(selectError);
   
@@ -176,26 +185,36 @@ const ProductManagement = () => {
   
   // Validar formulario
   const validateForm = () => {
-    if (!formData.sku || !formData.name || !formData.price || !formData.category) {
+    // ――― 1. Campos obligatorios ―――
+    if (!formData.sku || !formData.name || formData.price === '' || !formData.category) {
       setFormError('Los campos SKU, nombre, precio y categoría son obligatorios');
       return false;
     }
-    
-    if (isNaN(formData.price) || parseFloat(formData.price) <= 0) {
+
+  // ――― 2. Precio válido (> 0 y numérico) ―――
+  const priceNumber = Number(formData.price);
+    if (Number.isNaN(priceNumber) || priceNumber <= 0) {
       setFormError('El precio debe ser un número positivo');
       return false;
     }
-    
-    if (isNaN(formData.discount_percentage) || 
-        parseFloat(formData.discount_percentage) < 0 || 
-        parseFloat(formData.discount_percentage) > 100) {
+
+  // ――― 3. Descuento válido 0-100 ―――
+  const discountNumber = Number(formData.discount_percentage);
+    if (
+      Number.isNaN(discountNumber) ||
+      discountNumber < 0 ||
+      discountNumber > 100
+    ) {
       setFormError('El descuento debe ser un número entre 0 y 100');
       return false;
     }
-    
+
     return true;
   };
+
   
+  const safePage = pagination?.page ?? 1;
+
   // Crear producto
   const handleAddProduct = async () => {
     if (!validateForm()) return;
@@ -253,7 +272,7 @@ const ProductManagement = () => {
       
       // Actualizar lista
       dispatch(fetchProducts({ 
-        page: pagination.page, 
+        page: safePage, 
         filters: { per_page: 10 } 
       }));
       
@@ -284,7 +303,7 @@ const ProductManagement = () => {
       
       // Actualizar lista
       dispatch(fetchProducts({ 
-        page: pagination.page, 
+        page: safePage, 
         filters: { per_page: 10 } 
       }));
       
@@ -450,8 +469,8 @@ const ProductManagement = () => {
                         </td>
                       </tr>
                     ) : (
-                      products.map(product => (
-                        <tr key={product.id}>
+                      products.map((product, idx) => (
+                        <tr key={product.id ?? product.sku ?? idx}>
                           <td>{product.sku}</td>
                           <td>
                             {product.name}

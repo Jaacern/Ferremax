@@ -16,25 +16,30 @@ const ProtectedRoute = ({
   const isAuthenticated = useSelector(selectIsAuthenticated);
   const userRole = useSelector(selectUserRole);
   const passwordChangeRequired = useSelector(selectPasswordChangeRequired);
-  
-  // Si no está autenticado, redirigir al login
+
+  // 🔒 No autenticado: redirige al login
   if (!isAuthenticated) {
     return <Navigate to={redirect} replace />;
   }
-  
-  // Si se requiere cambio de contraseña y la contraseña necesita ser cambiada
+
+  // 🔐 Se requiere cambio de contraseña y aún no se ha hecho
   if (requirePasswordChange && passwordChangeRequired) {
     return <Navigate to="/change-password" replace />;
   }
-  
-  // Si se requiere cambio de contraseña pero no es necesario cambiarla
+
+  // 🔓 Se indica que debe cambiar la contraseña pero ya no es necesario
   if (requirePasswordChange && !passwordChangeRequired) {
     return <Navigate to="/" replace />;
   }
-  
-  // Si hay roles permitidos y el usuario no tiene uno de ellos
+
+  // ⚠️ userRole puede ser null en un primer render; prevenir fallo
+  if (!userRole) {
+    return <Navigate to={redirect} replace />;
+  }
+
+  // ✅ Validar roles permitidos
   if (allowedRoles.length > 0 && !allowedRoles.includes(userRole)) {
-    // Redirigir según el rol (personalización opcional)
+    // Redirección personalizada según rol
     switch (userRole) {
       case 'admin':
         return <Navigate to="/admin" replace />;
@@ -44,13 +49,12 @@ const ProtectedRoute = ({
         return <Navigate to="/warehouse" replace />;
       case 'accountant':
         return <Navigate to="/accountant" replace />;
-      case 'customer':
       default:
         return <Navigate to="/" replace />;
     }
   }
-  
-  // Si pasó todas las verificaciones, mostrar el contenido protegido
+
+  // ✅ Autenticado, con rol válido
   return children;
 };
 

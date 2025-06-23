@@ -21,7 +21,7 @@ class Order(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    branch_id = db.Column(db.Integer, db.ForeignKey('branches.id'), nullable=False)
+    branch_id = db.Column(db.Integer, db.ForeignKey('branches.id'), nullable=True)
     order_number = db.Column(db.String(20), unique=True, nullable=False)
     status = db.Column(db.Enum(OrderStatus), default=OrderStatus.PENDING)
     total_amount = db.Column(db.Numeric(10, 2), nullable=False)

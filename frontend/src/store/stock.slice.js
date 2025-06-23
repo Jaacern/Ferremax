@@ -5,6 +5,8 @@ import api from '../services/api';
 const initialState = {
   stocks: [],
   alerts: [],
+  currentStock: null,
+  branches: [],
   pagination: {
     page: 1,
     total: 0,
@@ -85,6 +87,36 @@ export const transferStock = createAsyncThunk(
     } catch (error) {
       return rejectWithValue(
         error.response?.data?.error || 'Error al transferir el stock'
+      );
+    }
+  }
+);
+
+export const fetchStockById = createAsyncThunk(
+  'stock/fetchStockById',
+  async (stockId, { rejectWithValue }) => {
+    try {
+      const { data } = await api.get(`/stock`, { params: { stock_id: stockId } });
+      // El endpoint /stock devuelve un array → coge el primero
+      return data.stocks?.[0] ?? null;
+    } catch (err) {
+      return rejectWithValue(
+        err.response?.data?.error || 'Error al obtener el stock'
+      );
+    }
+  }
+);
+
+export const fetchBranches = createAsyncThunk(
+  'stock/fetchBranches',
+  async (_, { rejectWithValue }) => {
+    try {
+      const { data } = await api.get('/products/branches');
+      // Ese endpoint ya existe en tu backend → products.py
+      return data.branches;
+    } catch (err) {
+      return rejectWithValue(
+        err.response?.data?.error || 'Error al cargar las sucursales'
       );
     }
   }
@@ -212,6 +244,26 @@ const stockSlice = createSlice({
       state.transferStatus.error = null;
       state.transferStatus.success = false;
     });
+
+    /* fetchStockById */
+    builder.addCase(fetchStockById.pending, (state) => {
+      state.isLoading = true;
+      state.error = null;
+    });
+    builder.addCase(fetchStockById.fulfilled, (state, action) => {
+      state.isLoading = false;
+      state.currentStock = action.payload;
+    });
+    builder.addCase(fetchStockById.rejected, (state, action) => {
+      state.isLoading = false;
+      state.error = action.payload;
+    });
+
+    /* fetchBranches */
+    builder.addCase(fetchBranches.fulfilled, (state, action) => {
+      state.branches = action.payload;
+    });
+
     builder.addCase(transferStock.fulfilled, (state, action) => {
       state.transferStatus.isLoading = false;
       state.transferStatus.success = true;
@@ -262,6 +314,8 @@ export const selectIsLoading = (state) => state.stock.isLoading;
 export const selectStockError = (state) => state.stock.error;
 export const selectTransferStatus = (state) => state.stock.transferStatus;
 export const selectUpdateStatus = (state) => state.stock.updateStatus;
+export const selectCurrentStock    = (state) => state.stock.currentStock;   
+export const selectBranches        = (state) => state.stock.branches;     
 
 // Reducer
 export default stockSlice.reducer;

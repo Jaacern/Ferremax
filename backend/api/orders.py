@@ -26,7 +26,7 @@ def create_order():
     data = request.json
     
     # Validar datos requeridos
-    required_fields = ['branch_id', 'items', 'delivery_method']
+    required_fields = ['items', 'delivery_method']
     if not all(k in data for k in required_fields):
         return jsonify({"error": "Faltan datos requeridos"}), 400
     
@@ -45,10 +45,15 @@ def create_order():
         return jsonify({"error": "Se requiere dirección de envío para despacho a domicilio"}), 400
     
     # Validar existencia de sucursal
-    branch = Branch.query.get(data['branch_id'])
-    if not branch:
-        return jsonify({"error": "Sucursal no encontrada"}), 404
-    
+    branch = None
+    if delivery_method == DeliveryMethod.PICKUP:
+        branch_id = data.get('branch_id')
+        if not branch_id:
+            return jsonify({"error": "Se requiere sucursal para retiro en tienda"}), 400
+        branch = Branch.query.get(branch_id)
+        if not branch:
+            return jsonify({"error": "Sucursal no encontrada"}), 404
+
     try:
         # Generar número de orden
         order_number = generate_order_number()
@@ -67,7 +72,7 @@ def create_order():
         # Crear la orden
         new_order = Order(
             user_id=user_id,
-            branch_id=data['branch_id'],
+            branch_id=branch.id if branch else None,
             order_number=order_number,
             total_amount=0,  # Se actualizará luego
             delivery_method=delivery_method,
@@ -95,18 +100,19 @@ def create_order():
             if not product:
                 db.session.rollback()
                 return jsonify({"error": f"Producto {product_id} no encontrado"}), 404
-            
-            # Verificar stock en la sucursal
-            stock = Stock.query.filter_by(
-                product_id=product_id, 
-                branch_id=data['branch_id']
-            ).first()
-            
-            if not stock or stock.quantity < quantity:
-                db.session.rollback()
-                return jsonify({
-                    "error": f"Stock insuficiente para {product.name} en la sucursal seleccionada"
-                }), 400
+
+            # Verificar stock en la sucursal (solo si hay branch)
+            if branch:
+                stock = Stock.query.filter_by(
+                    product_id=product_id, 
+                    branch_id=branch.id
+                ).first()
+
+                if not stock or stock.quantity < quantity:
+                    db.session.rollback()
+                    return jsonify({
+                        "error": f"Stock insuficiente para {product.name} en la sucursal seleccionada"
+                    }), 400
             
             # Calcular precio
             unit_price = product.current_price()
@@ -193,9 +199,9 @@ def get_orders():
         query = query.filter_by(user_id=user_id)
     elif role == UserRole.VENDOR.value:
         # Vendedores ven pedidos de su sucursal
-        if not branch_id:
+        #if not branch_id:
             # Obtener sucursal del vendedor (implementar lógica según tu sistema)
-            return jsonify({"error": "Se requiere sucursal para filtrar pedidos"}), 400
+            #return jsonify({"error": "Se requiere sucursal para filtrar pedidos"}), 400
         query = query.filter_by(branch_id=branch_id)
     elif role == UserRole.WAREHOUSE.value:
         # Bodegueros ven pedidos de su sucursal

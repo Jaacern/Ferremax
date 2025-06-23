@@ -2,12 +2,16 @@ import React from 'react';
 import { Navbar as BSNavbar, Container, Nav, NavDropdown, Button, Badge } from 'react-bootstrap';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
+import LogoImage from '../../assets/css/images/logo.png'; 
+import CurrencySelector from '../common/CurrencySelector'; // Añadir esta importación
+
 import { 
   selectIsAuthenticated, 
   selectCurrentUser, 
   selectUserRole,
   logout 
 } from '../../store/auth.slice';
+import { selectCurrentCurrency } from '../../store/currency.slice'; // Añadir esta importación
 
 const Navbar = () => {
   const dispatch = useDispatch();
@@ -15,16 +19,15 @@ const Navbar = () => {
   const isAuthenticated = useSelector(selectIsAuthenticated);
   const currentUser = useSelector(selectCurrentUser);
   const userRole = useSelector(selectUserRole);
-  
-  // Simulación para el carrito - esto vendrá del slice del carrito cuando lo implementemos
+  const currentCurrency = useSelector(selectCurrentCurrency); // Obtener moneda actual
+
   const cartItemCount = 0;
-  
+
   const handleLogout = () => {
     dispatch(logout());
     navigate('/login');
   };
-  
-  // Determinar los enlaces del menú según el rol del usuario
+
   const renderRoleBasedLinks = () => {
     switch (userRole) {
       case 'admin':
@@ -65,14 +68,31 @@ const Navbar = () => {
         return null;
     }
   };
-  
+
   return (
     <BSNavbar bg="primary" variant="dark" expand="lg" className="py-2 shadow-sm">
       <Container>
         <BSNavbar.Brand as={Link} to="/">
-          FERREMAS
+          <img 
+            src={LogoImage} 
+            alt="Logo Ferremas" 
+            height="50"
+            className="d-inline-block align-top"
+            style={{
+              transition: 'transform 0.3s ease, filter 0.3s ease',
+              filter: 'brightness(80%)',
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.filter = 'brightness(110%) drop-shadow(0 0 6px #ffffffcc)';
+              e.currentTarget.style.transform = 'scale(1.05)';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.filter = 'brightness(80%)';
+              e.currentTarget.style.transform = 'scale(1)';
+            }}
+          />
         </BSNavbar.Brand>
-        
+
         <BSNavbar.Toggle aria-controls="navbar-collapse" />
         
         <BSNavbar.Collapse id="navbar-collapse">
@@ -90,8 +110,13 @@ const Navbar = () => {
             </NavDropdown>
             {isAuthenticated && renderRoleBasedLinks()}
           </Nav>
-          
+
           <Nav>
+            {/* Añadir el selector de moneda aquí */}
+            <div className="me-3 d-flex align-items-center">
+              <CurrencySelector />
+            </div>
+
             {isAuthenticated ? (
               <>
                 {userRole === 'customer' && (
@@ -108,7 +133,7 @@ const Navbar = () => {
                     )}
                   </Nav.Link>
                 )}
-                
+
                 <NavDropdown 
                   title={
                     <>

@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package product;
+
+// ---------- Mensajes ----------
+message Product {
+  string sku              = 1;   // Código/SKU único
+  string name             = 2;   // Nombre visible
+  string category         = 3;   // Enum como string (MANUAL_TOOLS, …)
+  double price            = 4;   // Precio base
+  string description      = 5;
+  string brand            = 6;
+  string brand_code       = 7;
+  string subcategory      = 8;
+  uint32 discount_percentage = 9;
+  bool   is_featured      = 10;
+  bool   is_new           = 11;
+  bytes  image            = 12;  // Binario opcional (JPEG/PNG)
+}
+
+message Response {
+  string message = 1;   // Texto legible
+  bool   success = 2;   // true = OK, false = error
+}
+
+// ---------- Servicio ----------
+service ProductService {
+  rpc AddProduct (Product) returns (Response);
+}

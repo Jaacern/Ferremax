@@ -2,8 +2,8 @@ import React from 'react';
 import { Card, Button, Badge } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
-// Importaremos las acciones del carrito cuando las creemos
-// import { addToCart } from '../../store/cart.slice';
+import { addToCart } from '../../store/cart.slice';
+import CurrencyDisplay from '../common/CurrencyDisplay'; // Nuevo componente
 
 const ProductCard = ({ product }) => {
   const dispatch = useDispatch();
@@ -14,19 +14,8 @@ const ProductCard = ({ product }) => {
     ? product.price * (1 - product.discount_percentage / 100)
     : null;
   
-  // Formatear precio
-  const formatPrice = (price) => {
-    return new Intl.NumberFormat('es-CL', {
-      style: 'currency',
-      currency: 'CLP'
-    }).format(price);
-  };
-  
   const handleAddToCart = () => {
-    // Cuando implementemos el slice del carrito, descomentar esta línea
-    // dispatch(addToCart({ ...product, quantity: 1 }));
-    
-    // Por ahora, solo mostrar un mensaje en consola
+    dispatch(addToCart({ ...product, quantity: 1 }));
     console.log('Agregado al carrito:', product);
   };
   
@@ -85,20 +74,20 @@ const ProductCard = ({ product }) => {
           {product.brand}
         </small>
         
-        {/* Precios */}
+        {/* Precios - Ahora con CurrencyDisplay */}
         <div className="mb-3">
           {hasDiscount ? (
             <>
               <span className="product-card-price me-2">
-                {formatPrice(discountedPrice)}
+                <CurrencyDisplay amount={discountedPrice} originalCurrency="CLP" />
               </span>
               <span className="product-card-original-price text-muted text-decoration-line-through">
-                {formatPrice(product.price)}
+                <CurrencyDisplay amount={product.price} originalCurrency="CLP" />
               </span>
             </>
           ) : (
             <span className="product-card-price">
-              {formatPrice(product.price)}
+              <CurrencyDisplay amount={product.price} originalCurrency="CLP" />
             </span>
           )}
         </div>

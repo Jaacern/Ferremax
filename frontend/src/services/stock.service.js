@@ -8,7 +8,18 @@ const stockService = {
    */
   getStock: async (filters = {}) => {
     try {
-      const response = await api.get('/stock', { params: filters });
+
+      const cleaned = Object.fromEntries(
+       Object.entries(filters).filter(
+         ([, value]) =>
+           value !== undefined &&
+           value !== null &&
+           value !== '' &&
+           value !== false
+       )
+     );
+      
+      const response = await api.get('/stock', { params: cleaned });
       return response.data;
     } catch (error) {
       console.error('Error fetching stock:', error);
@@ -119,7 +130,23 @@ const stockService = {
       console.error('Error bulk updating stock:', error);
       throw error;
     }
+  },
+
+    /**
+   * Obtener stock por ID
+   * @param {number} stockId - ID del stock
+   * @returns {Promise} - Promesa con los datos del stock
+   */
+  getStockById: async (stockId) => {
+    try {
+      const response = await api.get(`/stock/${stockId}`);
+      return response.data
+    } catch (error) {
+      console.error('Error fetching stock by ID:', error);
+      throw error;
+    }
   }
+
 };
 
 export default stockService;

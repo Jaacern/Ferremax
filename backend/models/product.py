@@ -2,6 +2,7 @@ from datetime import datetime
 import enum
 from app import db
 
+
 class ProductCategory(enum.Enum):
     MANUAL_TOOLS = "Herramientas Manuales"
     POWER_TOOLS = "Herramientas Eléctricas"
@@ -27,7 +28,8 @@ class Product(db.Model):
     discount_percentage = db.Column(db.Integer, default=0)
     is_featured = db.Column(db.Boolean, default=False)
     is_new = db.Column(db.Boolean, default=False)
-    image_url = db.Column(db.String(255))
+    image_url  = db.Column(db.String(255))
+    image_data = db.Column(db.LargeBinary)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -60,14 +62,16 @@ class Product(db.Model):
             'description': self.description,
             'brand': self.brand,
             'brand_code': self.brand_code,
-            'category': self.category.value,
+            'category': self.category.name,
             'subcategory': self.subcategory,
-            'price': float(self.price),
+            'category_label': self.category.value,
+            "price": float(self.price) if self.price is not None else None,
             'current_price': self.current_price(),
             'discount_percentage': self.discount_percentage,
             'is_featured': self.is_featured,
             'is_new': self.is_new,
             'image_url': self.image_url,
+            'has_image': bool(self.image_data), 
             'created_at': self.created_at.isoformat() if self.created_at else None,
         }
     
