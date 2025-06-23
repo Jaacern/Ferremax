@@ -94,24 +94,37 @@ const ProductManagement = () => {
   
   // Manejar cambio de página
   const handlePageChange = (page) => {
-    dispatch(setFilters({ page }));
+    console.log('Cambiando a página:', page);
+    dispatch(fetchProducts({ 
+      page, 
+      filters: { 
+        per_page: 10,
+        ...pagination.filters 
+      } 
+    }));
   };
   
   // Manejar búsqueda
   const handleSearch = (e) => {
     e.preventDefault();
-    dispatch(setFilters({ 
-      search: searchTerm,
-      page: 1 
+    dispatch(fetchProducts({ 
+      page: 1, 
+      filters: { 
+        search: searchTerm,
+        per_page: 10
+      } 
     }));
   };
   
   // Resetear búsqueda
   const handleResetSearch = () => {
     setSearchTerm('');
-    dispatch(setFilters({ 
-      search: '',
-      page: 1 
+    dispatch(fetchProducts({ 
+      page: 1, 
+      filters: { 
+        search: '',
+        per_page: 10
+      } 
     }));
   };
   

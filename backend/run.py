@@ -1,7 +1,12 @@
 import os
 import argparse
+import logging
 from threading import Thread
 from dotenv import load_dotenv
+
+# Configurar logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # gRPC
 from services.grpc_product_service import serve as serve_grpc
@@ -19,9 +24,16 @@ def start_servers(args, app):
       • WERKZEUG_RUN_MAIN == 'true' solo existe en el segundo proceso
         (el que realmente atiende peticiones).
     """
+    logger.info(f"WERKZEUG_RUN_MAIN: {os.environ.get('WERKZEUG_RUN_MAIN')}")
+    logger.info(f"Debug mode: {args.debug}")
+    
     if os.environ.get("WERKZEUG_RUN_MAIN") == "true" or not args.debug:
+        logger.info("Iniciando servidor gRPC...")
         # --> ¡sin argumentos porque serve() no los espera!
         Thread(target=serve_grpc, daemon=True).start()
+        logger.info("Servidor gRPC iniciado en hilo separado")
+    else:
+        logger.info("Saltando inicio de gRPC (modo reloader)")
 
     app.run(
         host=args.host,

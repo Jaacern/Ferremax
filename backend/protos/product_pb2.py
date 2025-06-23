@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\rproduct.proto\x12\x07product\"\xe3\x01\n\x07Product\x12\x0b\n\x03sku\x18\x01 \x01(\t\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x10\n\x08\x63\x61tegory\x18\x03 \x01(\t\x12\r\n\x05price\x18\x04 \x01(\x01\x12\x13\n\x0b\x64\x65scription\x18\x05 \x01(\t\x12\r\n\x05\x62rand\x18\x06 \x01(\t\x12\x12\n\nbrand_code\x18\x07 \x01(\t\x12\x13\n\x0bsubcategory\x18\x08 \x01(\t\x12\x1b\n\x13\x64iscount_percentage\x18\t \x01(\r\x12\x13\n\x0bis_featured\x18\n \x01(\x08\x12\x0e\n\x06is_new\x18\x0b \x01(\x08\x12\r\n\x05image\x18\x0c \x01(\x0c\",\n\x08Response\x12\x0f\n\x07message\x18\x01 \x01(\t\x12\x0f\n\x07success\x18\x02 \x01(\x08\x32\x43\n\x0eProductService\x12\x31\n\nAddProduct\x12\x10.product.Product\x1a\x11.product.Responseb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\rproduct.proto\x12\x07product\"\xf6\x01\n\x07Product\x12\x0b\n\x03sku\x18\x01 \x01(\t\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x10\n\x08\x63\x61tegory\x18\x03 \x01(\t\x12\r\n\x05price\x18\x04 \x01(\x01\x12\x13\n\x0b\x64\x65scription\x18\x05 \x01(\t\x12\r\n\x05\x62rand\x18\x06 \x01(\t\x12\x12\n\nbrand_code\x18\x07 \x01(\t\x12\x13\n\x0bsubcategory\x18\x08 \x01(\t\x12\x1b\n\x13\x64iscount_percentage\x18\t \x01(\r\x12\x13\n\x0bis_featured\x18\n \x01(\x08\x12\x0e\n\x06is_new\x18\x0b \x01(\x08\x12\r\n\x05image\x18\x0c \x01(\x0c\x12\x11\n\timage_url\x18\r \x01(\t\",\n\x08Response\x12\x0f\n\x07message\x18\x01 \x01(\t\x12\x0f\n\x07success\x18\x02 \x01(\x08\x32\x43\n\x0eProductService\x12\x31\n\nAddProduct\x12\x10.product.Product\x1a\x11.product.Responseb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -32,9 +32,9 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'product_pb2', _globals)
 if not _descriptor._USE_C_DESCRIPTORS:
   DESCRIPTOR._loaded_options = None
   _globals['_PRODUCT']._serialized_start=27
-  _globals['_PRODUCT']._serialized_end=254
-  _globals['_RESPONSE']._serialized_start=256
-  _globals['_RESPONSE']._serialized_end=300
-  _globals['_PRODUCTSERVICE']._serialized_start=302
-  _globals['_PRODUCTSERVICE']._serialized_end=369
+  _globals['_PRODUCT']._serialized_end=273
+  _globals['_RESPONSE']._serialized_start=275
+  _globals['_RESPONSE']._serialized_end=319
+  _globals['_PRODUCTSERVICE']._serialized_start=321
+  _globals['_PRODUCTSERVICE']._serialized_end=388
 # @@protoc_insertion_point(module_scope)

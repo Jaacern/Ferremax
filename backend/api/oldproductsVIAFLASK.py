@@ -1,3 +1,5 @@
+from protos import product_pb2
+
 products_bp.route('', methods=['POST'])
 @jwt_required()
 @admin_required

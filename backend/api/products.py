@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 import json
-from backend.protos import product_pb2
+from protos import product_pb2
 from sqlalchemy import or_
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from app import db
@@ -16,7 +16,7 @@ def get_products():
     """Obtener lista de productos (público)"""
     # Parámetros de paginación y filtrado
     page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', 12, type=int)
+    per_page = request.args.get('per_page', 50, type=int)
     category = request.args.get('category')
     subcategory = request.args.get('subcategory')
     brand = request.args.get('brand')
@@ -26,14 +26,24 @@ def get_products():
     min_price = request.args.get('min_price', type=float)
     max_price = request.args.get('max_price', type=float)
     
+    # Debug: contar productos totales
+    total_products = Product.query.count()
+    print(f"DEBUG: Total de productos en BD: {total_products}")
+    
     # Iniciar consulta
     query = Product.query
     
     # Aplicar filtros
     if category:
         try:
-            query = query.filter_by(category=ProductCategory(category))
-        except ValueError:
+            # Si viene como nombre del enum (MANUAL_TOOLS)
+            if hasattr(ProductCategory, category):
+                category_enum = ProductCategory[category]
+            else:
+                # Si viene como valor del enum ("Herramientas Manuales")
+                category_enum = ProductCategory(category)
+            query = query.filter_by(category=category_enum)
+        except (KeyError, ValueError):
             pass
     
     if subcategory:
@@ -70,8 +80,21 @@ def get_products():
     # Preparar respuesta
     products = [product.to_dict() for product in pagination.items]
     
+    # Debug: mostrar cuántos productos se devuelven
+    print(f"DEBUG: Productos devueltos: {len(products)}")
+    print(f"DEBUG: Filtros aplicados - featured: {featured}, new: {new}, category: {category}")
+    print(f"DEBUG: Paginación - página {page}, por página {per_page}, total {pagination.total}")
+    
     return jsonify({
-        "products": products
+        "products": products,
+        "pagination": {
+            "page": page,
+            "per_page": per_page,
+            "total": pagination.total,
+            "pages": pagination.pages,
+            "has_next": pagination.has_next,
+            "has_prev": pagination.has_prev
+        }
     }), 200
 
 
@@ -153,8 +176,14 @@ def get_products_api():
     
     if category:
         try:
-            query = query.filter_by(category=ProductCategory(category))
-        except ValueError:
+            # Si viene como nombre del enum (MANUAL_TOOLS)
+            if hasattr(ProductCategory, category):
+                category_enum = ProductCategory[category]
+            else:
+                # Si viene como valor del enum ("Herramientas Manuales")
+                category_enum = ProductCategory(category)
+            query = query.filter_by(category=category_enum)
+        except (KeyError, ValueError):
             pass
     
     # Limitar a 100 resultados para evitar sobrecarga
@@ -179,7 +208,7 @@ def create_product():
 
     # ---- llamada gRPC --------------------------------------------------
     import grpc
-    from backend.protos import product_pb2_grpc
+    from protos import product_pb2_grpc
 
     # Construir el mensaje Product definido en tu .proto
     prod_msg = product_pb2.Product(
@@ -233,9 +262,15 @@ def update_product(product_id):
         # Actualizar categoría si se proporciona
         if 'category' in data:
             try:
-                product.category = ProductCategory(data['category'])
-            except ValueError:
-                return jsonify({"error": "Categoría inválida"}), 400
+                # Si viene como nombre del enum (MANUAL_TOOLS)
+                if hasattr(ProductCategory, data['category']):
+                    category_enum = ProductCategory[data['category']]
+                else:
+                    # Si viene como valor del enum ("Herramientas Manuales")
+                    category_enum = ProductCategory(data['category'])
+                product.category = category_enum
+            except (KeyError, ValueError):
+                return jsonify({"error": f"Categoría inválida: {data['category']}"}), 400
         
         # Actualizar precio y registrar en historial si cambió
         if 'price' in data and float(data['price']) != float(product.price):
@@ -457,3 +492,26 @@ def delete_branch(branch_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": "No se puede eliminar la sucursal: " + str(e)}), 500
+
+
+@products_bp.route('/debug', methods=['GET'])
+def debug_products():
+    """Endpoint temporal para debug - mostrar todos los productos sin filtros"""
+    products = Product.query.all()
+    result = []
+    for product in products:
+        result.append({
+            'id': product.id,
+            'sku': product.sku,
+            'name': product.name,
+            'category': product.category.name if product.category else None,
+            'category_value': product.category.value if product.category else None,
+            'is_featured': product.is_featured,
+            'is_new': product.is_new,
+            'created_at': product.created_at.isoformat() if product.created_at else None
+        })
+    
+    return jsonify({
+        "total_products": len(result),
+        "products": result
+    }), 200

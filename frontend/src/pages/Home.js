@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Container, Row, Col, Button, Card, Carousel } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
@@ -15,28 +15,48 @@ import HerramientasCategoriaImage from '../assets/css/images/herramientascategor
 import MaterialesCategoriaImage from '../assets/css/images/materialescategoria.png';
 import EquiposCategoriaImage from '../assets/css/images/equiposcategoria.png';
 
-
-
-
 const Home = () => {
   const dispatch = useDispatch();
   const products = useSelector(selectProducts);
   const isLoading = useSelector(selectIsLoading);
   
+  // Estados separados para productos destacados y nuevos
+  const [featuredProducts, setFeaturedProducts] = useState([]);
+  const [newProducts, setNewProducts] = useState([]);
+  const [isLoadingFeatured, setIsLoadingFeatured] = useState(false);
+  const [isLoadingNew, setIsLoadingNew] = useState(false);
+  
   // Cargar productos destacados al montar el componente
   useEffect(() => {
-    dispatch(fetchProducts({ 
-      page: 1, 
-      filters: { 
-        featured: true,
-        per_page: 8
-      } 
-    }));
-  }, [dispatch]);
-  
-  // Filtrar productos destacados (en una app real, esto vendría directamente filtrado del backend)
-  const featuredProducts = products.slice(0, 4);
-  const newProducts = products.filter(p => p.is_new).slice(0, 4);
+    const loadFeaturedProducts = async () => {
+      setIsLoadingFeatured(true);
+      try {
+        const response = await fetch('http://localhost:5000/api/products?featured=true&per_page=8');
+        const data = await response.json();
+        setFeaturedProducts(data.products || []);
+      } catch (error) {
+        console.error('Error cargando productos destacados:', error);
+      } finally {
+        setIsLoadingFeatured(false);
+      }
+    };
+
+    const loadNewProducts = async () => {
+      setIsLoadingNew(true);
+      try {
+        const response = await fetch('http://localhost:5000/api/products?new=true&per_page=8');
+        const data = await response.json();
+        setNewProducts(data.products || []);
+      } catch (error) {
+        console.error('Error cargando productos nuevos:', error);
+      } finally {
+        setIsLoadingNew(false);
+      }
+    };
+
+    loadFeaturedProducts();
+    loadNewProducts();
+  }, []);
   
   return (
     <div className="home-page">
@@ -216,7 +236,7 @@ const Home = () => {
           </div>
           
           <Row>
-            {isLoading ? (
+            {isLoadingFeatured ? (
               <Col className="text-center py-5">
                 <div className="spinner-border text-primary" role="status">
                   <span className="visually-hidden">Cargando...</span>
@@ -251,7 +271,7 @@ const Home = () => {
         </div>
         
         <Row>
-          {isLoading ? (
+          {isLoadingNew ? (
             <Col className="text-center py-5">
               <div className="spinner-border text-primary" role="status">
                 <span className="visually-hidden">Cargando...</span>

@@ -5,7 +5,7 @@ const productService = {
   getProducts: async (page = 1, filters = {}) => {
     const params = {
       page,
-      per_page: 12,
+      per_page: filters.per_page || 12,
       ...filters
     };
     

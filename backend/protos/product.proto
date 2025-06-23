@@ -16,6 +16,7 @@ message Product {
   bool   is_featured      = 10;
   bool   is_new           = 11;
   bytes  image            = 12;  // Binario opcional (JPEG/PNG)
+  string image_url        = 13;  // URL de la imagen
 }
 
 message Response {
